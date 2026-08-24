@@ -1,4 +1,4 @@
-﻿import React, { useEffect, type ReactNode } from 'react'
+import React, { useEffect, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 interface Props {

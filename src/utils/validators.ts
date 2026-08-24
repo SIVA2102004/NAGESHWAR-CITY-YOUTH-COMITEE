@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Validate Indian mobile number
  */
 export function isValidMobile(mobile: string): boolean {

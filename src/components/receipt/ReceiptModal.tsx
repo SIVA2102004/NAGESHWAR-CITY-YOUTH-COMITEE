@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import Modal from '../ui/Modal'
 import ReceiptView from './ReceiptView'
 import type { Contribution, Festival } from '../../types'

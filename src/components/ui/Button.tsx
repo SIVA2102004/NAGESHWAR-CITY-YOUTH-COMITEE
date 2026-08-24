@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import LoadingSpinner from './LoadingSpinner'
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {

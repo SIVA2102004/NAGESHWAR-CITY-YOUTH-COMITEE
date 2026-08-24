@@ -1,4 +1,4 @@
-﻿import type { UserRole } from '../types'
+import type { UserRole } from '../types'
 
 /**
  * Centralized permission system for Ganesh Chanda Pro.
