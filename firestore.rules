@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'admin' ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
+    function isVolunteer() {
+      return isAuthenticated() && (
+        getUserData().role == 'volunteer' ||
+        request.auth.token.role == 'volunteer'
+      );
+    }
+
+    function isMember() {
+      return isAuthenticated() && (
+        getUserData().role == 'member' ||
+        request.auth.token.role == 'member'
+      );
+    }
+
+    function isSelf(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Festivals
+    match /festivals/{festivalId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || (isSelf(userId) && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // Departments
+    match /departments/{departmentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Invite Codes
+    match /inviteCodes/{codeId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAuthenticated(); // For incrementing usage count
+    }
+
+    // Contributions
+    match /contributions/{contributionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isVolunteer();
+      allow update, delete: if isAdmin();
+    }
+
+    // Expenses
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && (isAdmin() || isVolunteer());
+      allow write: if isAdmin();
+    }
+
+    // Activity Logs
+    match /activityLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // Announcements
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Atomic counters for receipt numbers
+    match /counters/{counterId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
