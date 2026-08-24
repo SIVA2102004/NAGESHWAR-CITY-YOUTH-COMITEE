@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, IndianRupee, Users, UserCheck, Building2,
   ReceiptText, BarChart3, Megaphone, Activity, Settings,
-  LogOut, Menu, X, ChevronRight
+  LogOut, Menu, X, ChevronRight, ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
@@ -17,6 +17,7 @@ interface NavItem {
 
 const adminNav: NavItem[] = [
   { to: '/admin',               icon: <LayoutDashboard size={18} />, label: 'Dashboard'       },
+  { to: '/admin/admins',        icon: <ShieldCheck size={18} />,     label: 'Admins'           },
   { to: '/admin/contributions',  icon: <IndianRupee size={18} />,     label: 'Contributions'   },
   { to: '/admin/volunteers',     icon: <UserCheck size={18} />,       label: 'Coordinators'    },
   { to: '/admin/members',        icon: <Users size={18} />,           label: 'Volunteers'      },

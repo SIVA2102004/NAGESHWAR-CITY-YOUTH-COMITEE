@@ -40,11 +40,16 @@ function docToUser(d: any): AppUser {
 }
 
 export async function createUserProfile(user: Omit<AppUser, 'createdAt' | 'updatedAt'>): Promise<void> {
-  await setDoc(doc(db, COLLECTION, user.uid), {
-    ...user,
+  const cleanData: Record<string, unknown> = {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  })
+  }
+  for (const [key, value] of Object.entries(user)) {
+    if (value !== undefined) {
+      cleanData[key] = value
+    }
+  }
+  await setDoc(doc(db, COLLECTION, user.uid), cleanData)
 }
 
 export async function getUserProfile(uid: string): Promise<AppUser | null> {
@@ -59,10 +64,15 @@ export async function updateUserProfile(
 ): Promise<void> {
   // Never allow role change from client — enforce in Firestore rules too
   const { role: _role, ...safeData } = data
-  await updateDoc(doc(db, COLLECTION, uid), {
-    ...safeData,
+  const cleanData: Record<string, unknown> = {
     updatedAt: serverTimestamp(),
-  })
+  }
+  for (const [key, value] of Object.entries(safeData)) {
+    if (value !== undefined) {
+      cleanData[key] = value
+    }
+  }
+  await updateDoc(doc(db, COLLECTION, uid), cleanData)
 }
 
 export async function setUserRole(uid: string, role: UserRole): Promise<void> {
