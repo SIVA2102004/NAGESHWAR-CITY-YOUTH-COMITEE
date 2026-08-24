@@ -19,6 +19,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import SearchFilter from '../../components/ui/SearchFilter'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
+import UpiQrCode from '../../components/shared/UpiQrCode'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
 import type { Contribution, Department, PaymentMethod, PaymentStatus } from '../../types'
 
@@ -309,6 +310,22 @@ export default function ContributionsPage() {
               </select>
             </div>
           </div>
+
+          {/* Dynamic UPI QR Code */}
+          {(form.paymentMethod === 'UPI' || form.paymentMethod === 'Online') && (
+            <div className="p-3 bg-orange-50/70 border-2 border-amber-300 rounded-2xl text-center">
+              <p className="text-xs font-bold text-amber-900 mb-1.5">Devotee Instant Scan &amp; Pay</p>
+              <UpiQrCode
+                upiId={festival?.upiId || 'srinageshwaryouth@upi'}
+                payeeName={festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth'}
+                amount={form.amount}
+                note={`Ganesh Chanda - ${form.contributorName || 'Devotee'}`}
+                size={160}
+                showDetails={true}
+              />
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-gray-700">Department</label>
             <select

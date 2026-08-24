@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Building2, User, Save, RefreshCw } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Building2, User, Save, RefreshCw, QrCode, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
@@ -9,6 +9,7 @@ import { auth } from '../../firebase/config'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Card from '../../components/ui/Card'
+import UpiQrCode from '../../components/shared/UpiQrCode'
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth()
@@ -22,7 +23,25 @@ export default function SettingsPage() {
     contactNumber: festival?.contactNumber || '',
     email: festival?.email || '',
     targetAmount: String(festival?.targetAmount || ''),
+    upiId: festival?.upiId || 'srinageshwaryouth@upi',
+    upiPayeeName: festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth',
   })
+
+  useEffect(() => {
+    if (festival) {
+      setFestForm({
+        name: festival.name || '',
+        committeeName: festival.committeeName || '',
+        festivalYear: festival.festivalYear || '',
+        address: festival.address || '',
+        contactNumber: festival.contactNumber || '',
+        email: festival.email || '',
+        targetAmount: String(festival.targetAmount || ''),
+        upiId: festival.upiId || 'srinageshwaryouth@upi',
+        upiPayeeName: festival.upiPayeeName || festival.committeeName || 'Sri Nageshwar Youth',
+      })
+    }
+  }, [festival])
 
   const [userForm, setUserForm] = useState({
     name: user?.name || '',
@@ -45,8 +64,10 @@ export default function SettingsPage() {
         contactNumber: festForm.contactNumber,
         email: festForm.email,
         targetAmount: parseFloat(festForm.targetAmount) || 0,
+        upiId: festForm.upiId.trim(),
+        upiPayeeName: festForm.upiPayeeName.trim(),
       })
-      toast.success('Festival settings updated!')
+      toast.success('Festival and UPI settings updated successfully!')
     } catch { toast.error('Update failed') } finally { setFestSaving(false) }
   }
 
@@ -74,8 +95,62 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-extrabold text-gray-900">Settings</h1>
-        <p className="text-gray-500 text-sm">Manage festival and account settings</p>
+        <p className="text-gray-500 text-sm">Manage festival, UPI payment, and account settings</p>
       </div>
+
+      {/* UPI Payment Configuration Card (Admin Only) */}
+      <Card className="border-2 border-gold-300 bg-gradient-to-br from-white to-gold-50/30 shadow-card">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <QrCode size={22} className="text-saffron-600" />
+            Committee UPI Payment Settings (Admin Only)
+          </h2>
+          <span className="text-[11px] font-bold bg-green-100 text-green-800 px-2.5 py-1 rounded-full flex items-center gap-1">
+            <ShieldCheck size={13} /> Admin Managed
+          </span>
+        </div>
+        <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+          Configure your official Committee UPI ID. All dynamic QR codes generated across Volunteer &amp; Coordinator portals will automatically deposit directly into this bank account with <strong>0% gateway fees</strong>. Volunteers only see the QR scanner and cannot edit this ID.
+        </p>
+
+        <form onSubmit={handleFestSave} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="space-y-3">
+              <Input
+                label="Official Committee UPI ID *"
+                value={festForm.upiId}
+                onChange={e => setFestForm(f => ({ ...f, upiId: e.target.value }))}
+                placeholder="e.g. srinageshwar@okaxis, 9876543210@paytm"
+                hint="Supports any GPay, PhonePe, Paytm, or BHIM VPA"
+                required
+              />
+              <Input
+                label="Payee Account Name *"
+                value={festForm.upiPayeeName}
+                onChange={e => setFestForm(f => ({ ...f, upiPayeeName: e.target.value }))}
+                placeholder="e.g. Sri Nageshwar Youth Committee"
+                hint="Name shown to devotees when they scan"
+                required
+              />
+              <Button type="submit" icon={<Save size={15} />} loading={festSaving}>
+                Save UPI Configuration
+              </Button>
+            </div>
+
+            {/* Live QR Test Preview */}
+            <div className="bg-white rounded-2xl p-4 border border-gold-300 shadow-sm text-center">
+              <p className="text-xs font-bold text-saffron-800 uppercase tracking-wider mb-2">Live Test QR Code</p>
+              <UpiQrCode
+                upiId={festForm.upiId || 'srinageshwaryouth@upi'}
+                payeeName={festForm.upiPayeeName || 'Sri Nageshwar Youth'}
+                amount={501}
+                size={160}
+                showDetails={true}
+              />
+            </div>
+          </div>
+        </form>
+      </Card>
 
       <Card>
         <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -89,7 +164,7 @@ export default function SettingsPage() {
               onChange={e => setFestForm(f=>({...f,name:e.target.value}))} />
             <Input label="Festival Year" value={festForm.festivalYear}
               onChange={e => setFestForm(f=>({...f,festivalYear:e.target.value}))} />
-            <Input label="Target Amount (?)" type="number" value={festForm.targetAmount}
+            <Input label="Target Amount (₹)" type="number" value={festForm.targetAmount}
               onChange={e => setFestForm(f=>({...f,targetAmount:e.target.value}))} />
             <Input label="Address" value={festForm.address}
               onChange={e => setFestForm(f=>({...f,address:e.target.value}))} />
@@ -124,7 +199,7 @@ export default function SettingsPage() {
           <h3 className="font-semibold text-gray-900 mb-2">Password</h3>
           <p className="text-sm text-gray-500 mb-3">We will send a reset link to your email address.</p>
           {resetSent ? (
-            <p className="text-green-600 text-sm font-medium">? Reset email sent to {user?.email}</p>
+            <p className="text-green-600 text-sm font-medium">✓ Reset email sent to {user?.email}</p>
           ) : (
             <Button variant="secondary" icon={<RefreshCw size={15} />} onClick={handlePasswordReset}>
               Send Password Reset Email

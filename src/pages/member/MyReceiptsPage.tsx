@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Plus, Receipt, IndianRupee } from 'lucide-react'
+import { Plus, Receipt, IndianRupee, QrCode } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
@@ -15,10 +15,11 @@ import Badge from '../../components/ui/Badge'
 import EmptyState from '../../components/ui/EmptyState'
 import SearchFilter from '../../components/ui/SearchFilter'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
+import UpiQrCode from '../../components/shared/UpiQrCode'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import type { Contribution, PaymentMethod, PaymentStatus } from '../../types'
 
-const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'Online', 'UPI', 'Cheque']
+const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'UPI', 'Online', 'Cheque']
 const PAYMENT_STATUSES: PaymentStatus[] = ['Paid', 'Pending', 'Partial']
 
 export default function MyReceiptsPage() {
@@ -31,6 +32,7 @@ export default function MyReceiptsPage() {
   const [receiptOpen, setReceiptOpen] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<Contribution | null>(null)
   const [saving, setSaving] = useState(false)
+  const [showQr, setShowQr] = useState(true)
 
   const [form, setForm] = useState({
     contributorName: '',
@@ -305,6 +307,30 @@ export default function MyReceiptsPage() {
               </select>
             </div>
           </div>
+
+          {/* Dynamic UPI QR Code for Devotee Scan */}
+          {(form.paymentMethod === 'UPI' || form.paymentMethod === 'Online') && (
+            <div className="p-3.5 bg-gradient-to-b from-orange-50/70 to-amber-50/50 border-2 border-amber-300 rounded-2xl text-center transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <QrCode size={16} className="text-amber-600" />
+                  Devotee Scan &amp; Pay QR
+                </span>
+                <span className="text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                  ₹0 Fee Direct Bank UPI
+                </span>
+              </div>
+
+              <UpiQrCode
+                upiId={festival?.upiId || 'srinageshwaryouth@upi'}
+                payeeName={festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth'}
+                amount={form.amount}
+                note={`Ganesh Chanda - ${form.contributorName || 'Devotee'}`}
+                size={170}
+                showDetails={true}
+              />
+            </div>
+          )}
 
           <div>
             <label className="text-sm font-medium text-gray-700">Notes</label>

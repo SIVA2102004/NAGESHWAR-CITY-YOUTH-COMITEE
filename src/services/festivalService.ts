@@ -28,6 +28,8 @@ function docToFestival(d: any): Festival {
     email:         data.email as string | undefined,
     targetAmount:  (data.targetAmount as number) || 0,
     logo:          data.logo as string | undefined,
+    upiId:         data.upiId as string | undefined,
+    upiPayeeName:  data.upiPayeeName as string | undefined,
     createdAt:     toDate(data.createdAt),
     createdBy:     data.createdBy as string,
   }

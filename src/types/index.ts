@@ -35,6 +35,8 @@ export interface Festival {
   email?:        string
   targetAmount:  number
   logo?:         string
+  upiId?:        string
+  upiPayeeName?: string
   createdAt:     Date
   createdBy:     string
 }

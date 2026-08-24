@@ -14,6 +14,7 @@ import Badge from '../../components/ui/Badge'
 import EmptyState from '../../components/ui/EmptyState'
 import SearchFilter from '../../components/ui/SearchFilter'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
+import UpiQrCode from '../../components/shared/UpiQrCode'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import type { Contribution, PaymentMethod, PaymentStatus } from '../../types'
 
@@ -184,6 +185,28 @@ export default function MyContributionsPage() {
               </select>
             </div>
           </div>
+
+          {/* Dynamic UPI QR Code for Devotee Scan */}
+          {(form.paymentMethod === 'UPI' || form.paymentMethod === 'Online') && (
+            <div className="p-3.5 bg-gradient-to-b from-orange-50/70 to-amber-50/50 border-2 border-amber-300 rounded-2xl text-center transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-amber-900">Devotee Scan &amp; Pay QR</span>
+                <span className="text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                  ₹0 Fee Direct Bank Transfer
+                </span>
+              </div>
+
+              <UpiQrCode
+                upiId={festival?.upiId || 'srinageshwaryouth@upi'}
+                payeeName={festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth'}
+                amount={form.amount}
+                note={`Ganesh Chanda - ${form.contributorName || 'Devotee'}`}
+                size={170}
+                showDetails={true}
+              />
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-gray-700">Notes</label>
             <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} className="input-field mt-1 resize-none" rows={2} />
