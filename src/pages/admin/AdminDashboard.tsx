@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   IndianRupee, Users, UserCheck, Building2,
-  TrendingUp, Clock, CreditCard, Download, FileText
+  TrendingUp, Clock, CreditCard, Download, FileText, Key, ShieldCheck, Plus, Copy, Check, Share2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
@@ -13,16 +13,20 @@ import { subscribeToActivityLogs } from '../../services/activityService'
 import { getUsersByRole } from '../../services/userService'
 import { getDepartmentsByFestival } from '../../services/departmentService'
 import { subscribeToPublishedAnnouncements } from '../../services/announcementService'
+import { createInviteCode, getInviteCodesByFestival } from '../../services/inviteCodeService'
 import StatCard from '../../components/ui/StatCard'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import Modal from '../../components/ui/Modal'
+import Input from '../../components/ui/Input'
 import ActivityFeed from '../../components/shared/ActivityFeed'
 import AnnouncementCard from '../../components/shared/AnnouncementCard'
+import InviteCodeCard from '../../components/shared/InviteCodeCard'
 import CollectionChart from '../../components/charts/CollectionChart'
 import PaymentMethodChart from '../../components/charts/PaymentMethodChart'
 import ExpenseCategoryChart from '../../components/charts/ExpenseCategoryChart'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
-import type { Contribution, Expense, ActivityLog, Announcement, Department } from '../../types'
+import type { Contribution, Expense, ActivityLog, Announcement, Department, InviteCode, InviteCodeType } from '../../types'
 import { format } from 'date-fns'
 
 export default function AdminDashboard() {
@@ -33,9 +37,19 @@ export default function AdminDashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [volunteerCount, setVolunteerCount] = useState(0)
   const [memberCount, setMemberCount] = useState(0)
   const [deptCount, setDeptCount] = useState(0)
+
+  // Invite Codes State
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [recentCodes, setRecentCodes] = useState<InviteCode[]>([])
+  const [inviteRole, setInviteRole] = useState<InviteCodeType>('ADMIN_INVITE')
+  const [inviteDeptId, setInviteDeptId] = useState('')
+  const [inviteMaxUses, setInviteMaxUses] = useState('1')
+  const [inviteExpDays, setInviteExpDays] = useState('30')
+  const [genLoading, setGenLoading] = useState(false)
 
   useEffect(() => {
     if (!festival) return
@@ -48,7 +62,8 @@ export default function AdminDashboard() {
 
     getUsersByRole(fid, 'volunteer').then(v => setVolunteerCount(v.length)).catch(() => {})
     getUsersByRole(fid, 'member').then(m => setMemberCount(m.length)).catch(() => {})
-    getDepartmentsByFestival(fid).then(d => setDeptCount(d.length)).catch(() => {})
+    getDepartmentsByFestival(fid).then(d => { setDepartments(d); setDeptCount(d.length) }).catch(() => {})
+    getInviteCodesByFestival(fid).then(setRecentCodes).catch(() => {})
 
     return () => { unsub1(); unsub2(); unsub3(); unsub4() }
   }, [festival])
@@ -97,6 +112,13 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex items-center flex-wrap gap-2">
+          <Button
+            variant="outline"
+            icon={<Key size={15} />}
+            onClick={() => setInviteModalOpen(true)}
+          >
+            Invite Team &amp; Admins
+          </Button>
           <Button
             variant="outline"
             icon={<Download size={15} />}
@@ -199,6 +221,183 @@ export default function AdminDashboard() {
           </div>
         </Card>
       )}
+
+      {/* Invite Team & Admins Modal with Admin-Controlled Max Uses */}
+      <Modal
+        open={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        title="Invite Team Members &amp; Co-Admins"
+        maxWidth="max-w-xl"
+        footer={
+          <Button variant="outline" onClick={() => setInviteModalOpen(false)}>
+            Close
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-saffron-50 via-gold-50 to-orange-50 border border-saffron-200 rounded-2xl p-4">
+            <h4 className="font-bold text-gray-900 text-sm mb-1 flex items-center gap-2">
+              <Key size={16} className="text-saffron-600" />
+              Generate Official Invite Code
+            </h4>
+            <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+              Create a 6-character secure invite code with <strong>custom Max Uses decided by you</strong>. Send the code to your team to let them join with their own password.
+            </p>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Select Role *</label>
+                  <select
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value as InviteCodeType)}
+                    className="input-field text-sm font-semibold"
+                  >
+                    <option value="ADMIN_INVITE">Administrator (Co-Admin)</option>
+                    <option value="VOLUNTEER_INVITE">Coordinator (Dept Lead)</option>
+                    <option value="MEMBER_INVITE">Volunteer (Ground Worker)</option>
+                  </select>
+                </div>
+
+                {inviteRole !== 'ADMIN_INVITE' && (
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Department</label>
+                    <select
+                      value={inviteDeptId}
+                      onChange={e => setInviteDeptId(e.target.value)}
+                      className="input-field text-sm"
+                    >
+                      <option value="">-- General / No Dept --</option>
+                      {departments.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Max Uses Configured by Admin */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">
+                  Max Allowed Registrations (Max Uses decided by Admin)
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={inviteMaxUses}
+                    onChange={e => setInviteMaxUses(e.target.value)}
+                    placeholder="e.g. 1"
+                    className="w-28 text-center font-bold"
+                  />
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[
+                      { label: '1 (Single-Use)', val: '1' },
+                      { label: '5 People', val: '5' },
+                      { label: '10 People', val: '10' },
+                      { label: '25 People', val: '25' },
+                      { label: '∞ Unlimited', val: '0' },
+                    ].map(p => (
+                      <button
+                        key={p.val}
+                        type="button"
+                        onClick={() => setInviteMaxUses(p.val)}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-all ${
+                          inviteMaxUses === p.val
+                            ? 'bg-saffron-600 text-white border-saffron-600 shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {inviteMaxUses === '1'
+                    ? '🔒 Recommended for Admins: The code burns and disables automatically after 1 use.'
+                    : inviteMaxUses === '0'
+                    ? '♾️ Unlimited uses until you manually disable the code.'
+                    : `Allows exactly ${inviteMaxUses} people to register.`}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium">Expires in:</span>
+                  <select
+                    value={inviteExpDays}
+                    onChange={e => setInviteExpDays(e.target.value)}
+                    className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white"
+                  >
+                    <option value="7">7 Days</option>
+                    <option value="30">30 Days</option>
+                    <option value="90">90 Days</option>
+                    <option value="0">Never</option>
+                  </select>
+                </div>
+
+                <Button
+                  icon={<Key size={14} />}
+                  onClick={async () => {
+                    if (!user || !festival) return
+                    setGenLoading(true)
+                    try {
+                      const selectedDept = departments.find(d => d.id === inviteDeptId)
+                      const ic = await createInviteCode({
+                        type: inviteRole,
+                        festivalId: festival.id,
+                        departmentId: selectedDept?.id,
+                        departmentName: selectedDept?.name,
+                        createdBy: user.uid,
+                        createdByName: user.name,
+                        maxUses: parseInt(inviteMaxUses) || 0,
+                        expiresInDays: parseInt(inviteExpDays) || undefined,
+                      })
+                      setRecentCodes(prev => [ic, ...prev])
+                      toast.success(`Invite Code ${ic.code} generated!`)
+                    } catch {
+                      toast.error('Failed to generate invite code')
+                    } finally {
+                      setGenLoading(false)
+                    }
+                  }}
+                  loading={genLoading}
+                >
+                  Generate Invite Code
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* List of Generated Codes with Inline Max Uses Editor */}
+          <div>
+            <h4 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-2">
+              Active Committee Invite Codes (Edit limit anytime)
+            </h4>
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {recentCodes.map(c => (
+                <InviteCodeCard
+                  key={c.id}
+                  code={c}
+                  onUpdated={updated => {
+                    setRecentCodes(prev => prev.map(item => item.id === updated.id ? { ...updated } : item))
+                  }}
+                  onDisable={async (id) => {
+                    setRecentCodes(prev => prev.map(item => item.id === id ? { ...item, status: 'disabled' } : item))
+                    toast.success('Invite code disabled')
+                  }}
+                />
+              ))}
+              {recentCodes.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  Click "Generate Invite Code" to create your first code.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

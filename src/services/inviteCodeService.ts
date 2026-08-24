@@ -123,6 +123,14 @@ export async function incrementCodeUsage(codeId: string): Promise<void> {
   })
 }
 
+export async function updateInviteCode(
+  codeId: string,
+  data: Partial<Pick<InviteCode, 'maxUses' | 'status' | 'departmentId' | 'departmentName'>>
+): Promise<void> {
+  const payload: Record<string, unknown> = { ...data }
+  await updateDoc(doc(db, COLLECTION, codeId), payload)
+}
+
 export async function disableCode(codeId: string): Promise<void> {
   await updateDoc(doc(db, COLLECTION, codeId), { status: 'disabled' })
 }
