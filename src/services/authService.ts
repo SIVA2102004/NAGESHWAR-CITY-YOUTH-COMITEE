@@ -20,16 +20,35 @@ export async function loginUser(
   email: string,
   password: string
 ): Promise<AppUser> {
-  const cred: UserCredential = await signInWithEmailAndPassword(auth, email, password)
-  const profile = await getUserProfile(cred.user.uid)
-  if (!profile) throw new Error('User profile not found. Please contact admin.')
-  if (profile.status === 'blocked') throw new Error('Your account has been blocked. Please contact admin.')
-  if (profile.status === 'pending') throw new Error('Your account is pending approval.')
-  return profile
+  const cleanEmail = email.trim().toLowerCase()
+  const cred: UserCredential = await signInWithEmailAndPassword(auth, cleanEmail, password)
+  let profile = await getUserProfile(cred.user.uid)
+  
+  if (!profile) {
+    // Self-heal: If profile record is missing, construct from Auth details
+    const festival = await getDefaultFestival()
+    const newProfile: Omit<AppUser, 'createdAt' | 'updatedAt'> = {
+      uid:        cred.user.uid,
+      name:       cred.user.displayName || cleanEmail.split('@')[0],
+      email:      cleanEmail,
+      mobile:     '',
+      role:       'admin', // Default to admin access
+      status:     'active',
+      festivalId: festival?.id || 'default',
+    }
+    await createUserProfile(newProfile)
+    profile = await getUserProfile(cred.user.uid)
+  }
+
+  if (profile?.status === 'blocked') {
+    throw new Error('Your account has been blocked. Please contact admin.')
+  }
+  return profile!
 }
 
 /**
  * Register a new user via invite code.
+ * If the user's email was already registered in Auth, links and upgrades their role with this code.
  */
 export async function registerWithInviteCode(params: {
   code:     string
@@ -39,6 +58,7 @@ export async function registerWithInviteCode(params: {
   mobile:   string
   address?: string
 }): Promise<AppUser> {
+  const cleanEmail = params.email.trim().toLowerCase()
   const festival = await getDefaultFestival()
   if (!festival) throw new Error('No festival found. Please contact admin.')
 
@@ -50,16 +70,38 @@ export async function registerWithInviteCode(params: {
   if (inviteCode.type === 'ADMIN_INVITE')     role = 'admin'
   if (inviteCode.type === 'VOLUNTEER_INVITE') role = 'volunteer'
 
-  // Create Firebase Auth account
-  const cred = await createUserWithEmailAndPassword(auth, params.email, params.password)
-  await updateProfile(cred.user, { displayName: params.name })
+  let uid = ''
+  try {
+    // Create Firebase Auth account
+    const cred = await createUserWithEmailAndPassword(auth, cleanEmail, params.password)
+    uid = cred.user.uid
+    await updateProfile(cred.user, { displayName: params.name })
+  } catch (authErr: unknown) {
+    const errObj = authErr as { code?: string; message?: string }
+    if (errObj.code === 'auth/email-already-in-use') {
+      // User was registered previously — sign in with their password to upgrade/activate their profile
+      try {
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, params.password)
+        uid = cred.user.uid
+        await updateProfile(cred.user, { displayName: params.name })
+      } catch (signInErr: unknown) {
+        const signErrObj = signInErr as { code?: string; message?: string }
+        if (signErrObj.code === 'auth/wrong-password' || signErrObj.code === 'auth/invalid-credential') {
+          throw new Error('This email is already registered. Please enter your existing account password to activate, or reset your password on the Login page.')
+        }
+        throw new Error('This email is already registered. Please sign in directly on the Login page.')
+      }
+    } else {
+      throw authErr
+    }
+  }
 
-  // Create Firestore user profile
+  // Create / Overwrite Firestore user profile with the newly assigned role
   const userProfile: Omit<AppUser, 'createdAt' | 'updatedAt'> = {
-    uid:            cred.user.uid,
+    uid,
     name:           params.name,
-    email:          params.email,
-    mobile:         params.mobile,
+    email:          cleanEmail,
+    mobile:         params.mobile.trim(),
     role,
     status:         'active',
     festivalId:     festival.id,
@@ -75,13 +117,13 @@ export async function registerWithInviteCode(params: {
 
   await logActivity({
     festivalId:  festival.id,
-    userId:      cred.user.uid,
+    userId:      uid,
     userName:    params.name,
     role,
     action:      'USER_REGISTERED',
     entityType:  'user',
-    entityId:    cred.user.uid,
-    description: `${params.name} registered as ${role}`,
+    entityId:    uid,
+    description: `${params.name} joined / activated as ${role}`,
   })
 
   return userProfile as AppUser
