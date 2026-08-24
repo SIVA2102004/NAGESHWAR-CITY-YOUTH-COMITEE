@@ -37,9 +37,11 @@ import MemberDashboard from './pages/member/MemberDashboard'
 import MyReceiptsPage from './pages/member/MyReceiptsPage'
 import MemberProfilePage from './pages/member/MemberProfilePage'
 
+import LoadingSpinner from './components/ui/LoadingSpinner'
+
 function HomeRedirect() {
   const { user, loading } = useAuth()
-  if (loading) return null
+  if (loading) return <LoadingSpinner fullScreen label="Loading Sri Nageshwar Youth..." />
   if (!user) return <Navigate to="/login" replace />
   if (user.role === 'admin') return <Navigate to="/admin" replace />
   if (user.role === 'volunteer') return <Navigate to="/volunteer" replace />
