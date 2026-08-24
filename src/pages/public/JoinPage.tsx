@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Hash, User, Mail, Lock, Phone, Eye, EyeOff, CheckCircle, UserCheck, Users } from 'lucide-react'
+import { Hash, User, Mail, Lock, Phone, Eye, EyeOff, CheckCircle, UserCheck, Users, ShieldCheck, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { validateInviteCode } from '../../services/inviteCodeService'
 import { getDefaultFestival } from '../../services/festivalService'
@@ -20,6 +20,7 @@ export default function JoinPage() {
   const [validating, setValidating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
+  const [registeredRole, setRegisteredRole] = useState<'admin' | 'volunteer' | 'member'>('member')
 
   const [form, setForm] = useState({
     name: '',
@@ -30,9 +31,9 @@ export default function JoinPage() {
   })
 
   const typeLabel: Record<string, string> = {
-    ADMIN_INVITE: 'Administrator',
-    VOLUNTEER_INVITE: 'Coordinator',
-    MEMBER_INVITE: 'Volunteer',
+    ADMIN_INVITE: 'Administrator (Co-Admin)',
+    VOLUNTEER_INVITE: 'Coordinator (Dept Lead)',
+    MEMBER_INVITE: 'Volunteer (Ground Collector)',
   }
 
   const handleValidateCode = async (e: React.FormEvent) => {
@@ -62,19 +63,21 @@ export default function JoinPage() {
     if (form.password.length < 6) { toast.error('Password must be at least 6 characters'); return }
     setSubmitting(true)
     try {
-      await registerWithInviteCode({
+      const user = await registerWithInviteCode({
         code: code.toUpperCase(),
         name: form.name,
-        email: form.email,
+        email: form.email.trim().toLowerCase(),
         password: form.password,
-        mobile: form.mobile,
+        mobile: form.mobile.trim(),
         address: form.address,
       })
+      setRegisteredRole(user.role)
       setStep('success')
+      toast.success(`Account created as ${user.role}! 🎉`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed'
       if (msg.includes('email-already-in-use')) {
-        toast.error('This email is already registered. Please login.')
+        toast.error('This email is already registered. Please go to Login.')
       } else {
         toast.error(msg)
       }
@@ -92,18 +95,18 @@ export default function JoinPage() {
             alt="Sri Nageshwar Youth Logo"
             className="w-20 h-20 mx-auto mb-3 rounded-full object-cover shadow-lg ring-4 ring-gold-400/50"
           />
-          <h1 className="text-3xl font-extrabold text-gray-900">Create Account</h1>
-          <p className="text-saffron-700 font-semibold mt-1">Coordinator &amp; Volunteer Registration</p>
+          <h1 className="text-3xl font-extrabold text-gray-900">Join Committee</h1>
+          <p className="text-saffron-700 font-semibold mt-1">Admin, Coordinator &amp; Volunteer Portal</p>
           <p className="text-gray-500 text-sm mt-0.5">Sri Nageshwar Youth • Marwadi University</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-card-hover p-6 sm:p-8">
           {step === 'code' && (
             <div className="space-y-5">
-              <div className="flex gap-2 p-3 bg-saffron-50 rounded-xl border border-saffron-200 text-xs text-saffron-900 leading-relaxed">
-                <span>??</span>
+              <div className="flex gap-2.5 p-3.5 bg-gradient-to-r from-saffron-50 to-gold-50 rounded-xl border border-saffron-200 text-xs text-saffron-950 leading-relaxed">
+                <span className="text-base">🛕</span>
                 <span>
-                  Volunteers and Members require an <strong>Invite Code</strong> issued by the Festival Admin to join a department and start collecting or tracking contributions.
+                  Co-Admins, Coordinators, and Volunteers must enter an <strong>Invite Code</strong> issued by the Committee Admin to activate their account and set their password.
                 </span>
               </div>
 
@@ -113,7 +116,7 @@ export default function JoinPage() {
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. GAN7K2"
+                  placeholder="e.g. ADM7K2"
                   icon={<Hash size={16} />}
                   maxLength={6}
                   style={{ fontFamily: 'monospace', letterSpacing: '0.15em', fontWeight: 700 }}
@@ -121,19 +124,19 @@ export default function JoinPage() {
                   autoFocus
                 />
                 <Button type="submit" fullWidth loading={validating}>
-                  Verify &amp; Continue
+                  Verify Code &amp; Continue
                 </Button>
               </form>
 
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-2 text-center">
-                <p className="text-sm text-gray-500">
-                  Already have an account?{' '}
-                  <Link to="/login" className="text-saffron-600 font-semibold hover:underline">
+                <p className="text-sm text-gray-600">
+                  Already registered?{' '}
+                  <Link to="/login" className="text-saffron-600 font-bold hover:underline">
                     Sign In here
                   </Link>
                 </p>
                 <p className="text-xs text-gray-400">
-                  Don't have an invite code? Contact your festival administrator to get one.
+                  Don't have an invite code? Ask your primary festival administrator for one.
                 </p>
               </div>
             </div>
@@ -141,59 +144,63 @@ export default function JoinPage() {
 
           {step === 'details' && inviteCode && (
             <form onSubmit={handleRegister} className="space-y-4">
-              <div className="bg-saffron-50 border border-saffron-200 rounded-xl p-4 mb-2">
+              <div className="bg-gradient-to-r from-saffron-50 via-gold-50 to-orange-50 border border-saffron-300 rounded-xl p-4 mb-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {inviteCode.type === 'VOLUNTEER_INVITE' ? (
-                      <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
-                        <UserCheck size={18} />
+                  <div className="flex items-center gap-3">
+                    {inviteCode.type === 'ADMIN_INVITE' ? (
+                      <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+                        <ShieldCheck size={20} />
+                      </div>
+                    ) : inviteCode.type === 'VOLUNTEER_INVITE' ? (
+                      <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-md">
+                        <UserCheck size={20} />
                       </div>
                     ) : (
-                      <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
-                        <Users size={18} />
+                      <div className="w-10 h-10 rounded-xl bg-purple-500 text-white flex items-center justify-center shadow-md">
+                        <Users size={20} />
                       </div>
                     )}
                     <div>
-                      <p className="text-xs text-gray-500">Registering as</p>
-                      <p className="font-bold text-gray-900 text-sm">{typeLabel[inviteCode.type]}</p>
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Joining Role</p>
+                      <p className="font-extrabold text-gray-900 text-sm">{typeLabel[inviteCode.type]}</p>
                     </div>
                   </div>
                   {inviteCode.departmentName && (
                     <div className="text-right">
-                      <p className="text-xs text-gray-500">Department</p>
-                      <p className="font-bold text-saffron-700 text-sm">{inviteCode.departmentName}</p>
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Department</p>
+                      <p className="font-bold text-saffron-800 text-sm">{inviteCode.departmentName}</p>
                     </div>
                   )}
                 </div>
-                <div className="mt-2.5 pt-2 border-t border-saffron-200/60 flex items-center justify-between">
+                <div className="mt-2.5 pt-2 border-t border-saffron-200/80 flex items-center justify-between">
                   <Badge variant="success" dot>Code Validated</Badge>
-                  <span className="font-mono text-xs font-bold text-saffron-800">{inviteCode.code}</span>
+                  <span className="font-mono text-xs font-bold text-saffron-800 tracking-wider">{inviteCode.code}</span>
                 </div>
               </div>
 
               <Input
-                label="Full Name"
+                label="Your Full Name"
                 value={form.name}
                 onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Ramesh Patil"
+                placeholder="e.g. Rahul Sharma"
                 icon={<User size={16} />}
                 required
               />
               <Input
-                label="Email Address"
+                label="Email Address (Used for Sign In)"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="ramesh@example.com"
+                placeholder="rahul@example.com"
                 icon={<Mail size={16} />}
                 required
               />
               <Input
-                label="Password"
+                label="Create Password (Min. 6 characters)"
                 type={showPwd ? 'text' : 'password'}
                 value={form.password}
                 onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="Min. 6 characters"
+                placeholder="Create a strong password"
                 icon={<Lock size={16} />}
                 rightIcon={
                   <button type="button" onClick={() => setShowPwd(!showPwd)}>
@@ -212,10 +219,10 @@ export default function JoinPage() {
                 required
               />
               <Input
-                label="Address (Optional)"
+                label="Address / Area (Optional)"
                 value={form.address}
                 onChange={(e) => setForm(f => ({ ...f, address: e.target.value }))}
-                placeholder="House / Flat / Area"
+                placeholder="Hostel / Flat / Area"
               />
 
               <div className="flex gap-3 pt-2">
@@ -230,19 +237,27 @@ export default function JoinPage() {
           )}
 
           {step === 'success' && (
-            <div className="text-center py-4">
-              <CheckCircle className="text-green-500 mx-auto mb-3" size={48} />
-              <h2 className="text-xl font-bold text-gray-900">Account Created Successfully!</h2>
-              <p className="text-gray-500 text-sm mt-2">
-                Welcome to the festival committee. You can now sign in with your email and password.
-              </p>
-              <Button
-                className="mt-6"
-                fullWidth
-                onClick={() => navigate('/login')}
-              >
-                Go to Sign In
-              </Button>
+            <div className="text-center py-4 space-y-4">
+              <CheckCircle className="text-green-500 mx-auto" size={56} />
+              <div>
+                <h2 className="text-2xl font-black text-gray-900">Registration Complete! 🎉</h2>
+                <p className="text-gray-600 text-sm mt-1">
+                  You are now registered as <strong className="text-saffron-800 uppercase">{registeredRole}</strong> of Sri Nageshwar Youth Committee.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  fullWidth
+                  icon={<ArrowRight size={16} />}
+                  onClick={() => {
+                    const dest = registeredRole === 'admin' ? '/admin' : registeredRole === 'volunteer' ? '/volunteer' : '/member'
+                    navigate(dest, { replace: true })
+                  }}
+                >
+                  Enter {registeredRole === 'admin' ? 'Admin Dashboard' : registeredRole === 'volunteer' ? 'Coordinator Portal' : 'Volunteer Portal'}
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -23,22 +23,30 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !password) {
       toast.error('Please enter email and password')
       return
     }
     setSubmitting(true)
     try {
-      const user = await login(email, password)
-      toast.success(`Welcome back, ${user.name}! ??`)
+      const user = await login(cleanEmail, password)
+      toast.success(`Welcome back, ${user.name}! 🙏`)
       const route = user.role === 'admin' ? '/admin' : user.role === 'volunteer' ? '/volunteer' : '/member'
       navigate(route, { replace: true })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed'
-      if (msg.includes('user-not-found') || msg.includes('wrong-password') || msg.includes('invalid-credential')) {
-        toast.error('Invalid email or password')
+      if (
+        msg.includes('user-not-found') ||
+        msg.includes('wrong-password') ||
+        msg.includes('invalid-credential') ||
+        msg.includes('INVALID_LOGIN_CREDENTIALS')
+      ) {
+        toast.error('Invalid email or password. If you are a new Co-Admin or Volunteer, please join using an Invite Code first.', {
+          duration: 5000,
+        })
       } else if (msg.includes('too-many-requests')) {
-        toast.error('Too many attempts. Please try again later.')
+        toast.error('Too many attempts. Please wait a moment and try again.')
       } else {
         toast.error(msg)
       }
@@ -185,8 +193,8 @@ export default function LoginPage() {
                 <div className="bg-gradient-to-r from-saffron-50 to-gold-50 border border-saffron-200 rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-gray-900 text-sm">New Coordinator or Volunteer?</p>
-                      <p className="text-xs text-gray-600 mt-0.5">Register with an invite code from your committee</p>
+                      <p className="font-bold text-gray-900 text-sm">New Co-Admin, Coordinator, or Volunteer?</p>
+                      <p className="text-xs text-gray-600 mt-0.5">Activate your account with an invite code from the committee</p>
                     </div>
                     <Link
                       to="/join"
