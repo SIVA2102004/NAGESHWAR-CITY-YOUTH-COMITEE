@@ -71,9 +71,9 @@ export default function Sidebar() {
           />
           <div className="min-w-0">
             <h1 className="font-bold text-gray-900 text-sm leading-tight truncate">
-              {festival?.committeeName || 'Sri Nageshwar Youth'}
+              {festival?.committeeName || 'Ganesh Committee'}
             </h1>
-            <p className="text-xs text-saffron-600 font-medium">{festival?.festivalYear || '2026'}</p>
+            <p className="text-xs text-saffron-600 font-medium">Ganesh Festival {festival?.festivalYear || '2026'}</p>
           </div>
         </div>
       </div>
@@ -96,26 +96,6 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      {/* User + logout */}
-      <div className="px-4 py-4 border-t border-gray-100">
-        <div className="flex items-center gap-3 px-2 py-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-saffron-100 flex items-center justify-center text-saffron-700 font-bold text-sm flex-shrink-0">
-            {user?.name?.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-            <p className="text-xs text-gray-400 capitalize">{role}</p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
-        >
-          <LogOut size={16} />
-          Logout
-        </button>
-      </div>
     </div>
   )
 
