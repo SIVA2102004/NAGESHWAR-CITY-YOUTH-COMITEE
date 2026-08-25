@@ -18,6 +18,7 @@ interface AuthContextValue {
   role:          UserRole | null
   loading:       boolean
   isAdmin:       boolean
+  isSuperAdmin:  boolean
   isVolunteer:   boolean
   isMember:      boolean
   login:         (email: string, password: string) => Promise<AppUser>
@@ -75,6 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const role      = user?.role ?? null
   const isAdmin   = role === 'admin'
+  // Super Admin / President is the primary creator or explicitly marked isSuperAdmin (NOT an invited local co-admin)
+  const isSuperAdmin =
+    isAdmin &&
+    (user?.isSuperAdmin === true ||
+      user?.createdBy === user?.uid ||
+      !user?.inviteCodeUsed)
   const isVolunteer = role === 'volunteer'
   const isMember  = role === 'member'
   const homeRoute = role ? getHomeRoute(role) : '/login'
@@ -87,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
         loading,
         isAdmin,
+        isSuperAdmin,
         isVolunteer,
         isMember,
         login,

@@ -6,7 +6,7 @@ import { useFestival } from '../../context/FestivalContext'
 import toast from 'react-hot-toast'
 
 export default function TopHeader() {
-  const { user, role, logout } = useAuth()
+  const { user, role, isSuperAdmin, logout } = useAuth()
   const { festival, allFestivals, selectFestival } = useFestival()
   const navigate = useNavigate()
 
@@ -35,14 +35,18 @@ export default function TopHeader() {
   }
 
   const roleLabel =
-    role === 'admin'
+    isSuperAdmin
+      ? 'President'
+      : role === 'admin'
       ? 'Administrator'
       : role === 'volunteer'
       ? 'Coordinator'
       : 'Volunteer'
 
   const roleBadgeColor =
-    role === 'admin'
+    isSuperAdmin
+      ? 'bg-amber-100 text-amber-900 border-amber-400 font-black'
+      : role === 'admin'
       ? 'bg-amber-100 text-amber-900 border-amber-300'
       : role === 'volunteer'
       ? 'bg-blue-100 text-blue-900 border-blue-300'
@@ -51,14 +55,14 @@ export default function TopHeader() {
   return (
     <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-amber-200/60 px-4 lg:px-8 py-2.5 shadow-xs">
       <div className="flex items-center justify-between gap-3">
-        {/* Left: Committee / Festival Badge with Multi-Committee Dropdown for Admins */}
+        {/* Left: Committee / Festival Badge with Multi-Committee Dropdown for Super Admins ONLY */}
         <div className="flex items-center gap-2 pl-12 lg:pl-0">
           <div className="relative" ref={dropdownRef}>
-            {role === 'admin' ? (
+            {isSuperAdmin ? (
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-2xl hover:bg-amber-50/80 border border-transparent hover:border-amber-200 transition-all text-left group"
-                title="Switch Committee / Pandal"
+                title="Switch Committee / Pandal (President Access)"
               >
                 <img
                   src="/logo.jpg"
@@ -78,14 +82,14 @@ export default function TopHeader() {
                 </div>
               </button>
             ) : (
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 px-1 py-1">
                 <img
                   src="/logo.jpg"
                   alt="Logo"
                   className="w-8 h-8 rounded-full object-cover shadow-xs border border-amber-400"
                 />
                 <div>
-                  <h2 className="text-xs font-bold text-gray-900 leading-tight">
+                  <h2 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">
                     {festival?.committeeName || 'Ganesh Committee'}
                   </h2>
                   <p className="text-[10px] text-amber-700 font-medium">
@@ -95,8 +99,8 @@ export default function TopHeader() {
               </div>
             )}
 
-            {/* Committee Switcher Menu */}
-            {dropdownOpen && role === 'admin' && (
+            {/* Committee Switcher Menu (Super Admin Only) */}
+            {dropdownOpen && isSuperAdmin && (
               <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-amber-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-gray-500">

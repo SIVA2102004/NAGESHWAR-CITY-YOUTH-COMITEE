@@ -44,12 +44,16 @@ const memberNav: NavItem[] = [
 ]
 
 export default function Sidebar() {
-  const { user, role, logout } = useAuth()
+  const { user, role, isSuperAdmin, logout } = useAuth()
   const { festival }           = useFestival()
   const navigate               = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const navItems = role === 'admin' ? adminNav : role === 'volunteer' ? volunteerNav : memberNav
+  const adminFiltered = isSuperAdmin
+    ? adminNav
+    : adminNav.filter((item) => item.to !== '/admin/master')
+
+  const navItems = role === 'admin' ? adminFiltered : role === 'volunteer' ? volunteerNav : memberNav
 
   const handleLogout = async () => {
     try {
