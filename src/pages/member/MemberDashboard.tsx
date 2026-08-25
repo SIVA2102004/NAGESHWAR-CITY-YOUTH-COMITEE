@@ -4,22 +4,18 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
-import { getContributionsByFestival, createContribution } from '../../services/contributionService'
+import { getContributionsByFestival } from '../../services/contributionService'
+import { getDepartmentsByFestival } from '../../services/departmentService'
 import { subscribeToPublishedAnnouncements } from '../../services/announcementService'
-import { logActivity } from '../../services/activityService'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
-import Modal from '../../components/ui/Modal'
-import Input from '../../components/ui/Input'
 import Badge from '../../components/ui/Badge'
 import AnnouncementCard from '../../components/shared/AnnouncementCard'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
-import UpiQrCode from '../../components/shared/UpiQrCode'
+import AddContributionModal from '../../components/contributions/AddContributionModal'
+import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
 import { formatCurrency, formatDate } from '../../utils/formatters'
-import type { Contribution, Announcement, PaymentMethod, PaymentStatus } from '../../types'
-
-const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'Online', 'UPI', 'Cheque']
-const PAYMENT_STATUSES: PaymentStatus[] = ['Paid', 'Pending', 'Partial']
+import type { Contribution, Announcement, Department } from '../../types'
 
 export default function MemberDashboard() {
   const { user } = useAuth()
@@ -27,21 +23,19 @@ export default function MemberDashboard() {
   const navigate = useNavigate()
 
   const [myContribs, setMyContribs] = useState<Contribution[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [modalOpen, setModalOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+
+  // Single Receipt Modal
   const [receiptOpen, setReceiptOpen] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<Contribution | null>(null)
 
-  const [form, setForm] = useState({
-    contributorName: '',
-    mobile: '',
-    houseNumber: '',
-    amount: '',
-    paymentMethod: 'Cash' as PaymentMethod,
-    paymentStatus: 'Paid' as PaymentStatus,
-    notes: '',
-  })
+  // Group Receipt Modal
+  const [groupReceiptOpen, setGroupReceiptOpen] = useState(false)
+  const [groupReceiptList, setGroupReceiptList] = useState<Contribution[]>([])
+  const [groupRoomNumber, setGroupRoomNumber] = useState('')
+  const [groupTotalAmount, setGroupTotalAmount] = useState(0)
 
   const loadContributions = async () => {
     if (!festival || !user) return
@@ -61,72 +55,28 @@ export default function MemberDashboard() {
   useEffect(() => {
     loadContributions()
     if (festival) {
+      getDepartmentsByFestival(festival.id).then(setDepartments).catch(() => {})
       return subscribeToPublishedAnnouncements(festival.id, setAnnouncements)
     }
   }, [festival, user])
 
   const totalPaid = myContribs.filter(c => c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0)
 
-  const handleRecordContribution = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.contributorName.trim() || !form.mobile.trim() || !form.amount || !festival || !user) {
-      toast.error('Please fill all required fields')
-      return
-    }
-    const amt = parseFloat(form.amount)
-    if (isNaN(amt) || amt <= 0) {
-      toast.error('Please enter a valid amount')
-      return
-    }
-    setSaving(true)
-    try {
-      const c = await createContribution({
-        festivalId: festival.id,
-        festivalYear: festival.festivalYear,
-        contributorName: form.contributorName.trim(),
-        mobile: form.mobile.trim(),
-        houseNumber: form.houseNumber.trim() || undefined,
-        amount: amt,
-        paymentMethod: form.paymentMethod,
-        paymentStatus: form.paymentStatus,
-        collectedBy: user.name,
-        collectedByUid: user.uid,
-        departmentId: user.departmentId || 'general',
-        departmentName: user.departmentName || 'General Volunteer',
-        notes: form.notes.trim() || undefined,
-        createdBy: user.uid,
-      })
-
-      toast.success('Contribution recorded successfully! 🙏')
-      await logActivity({
-        festivalId: festival.id,
-        userId: user.uid,
-        userName: user.name,
-        role: 'member',
-        action: 'CONTRIBUTION_CREATED',
-        entityType: 'contribution',
-        entityId: c.id,
-        description: `Volunteer ${user.name} recorded ${formatCurrency(amt)} from ${form.contributorName}`,
-      })
-
-      setModalOpen(false)
-      setForm({
-        contributorName: '',
-        mobile: '',
-        houseNumber: '',
-        amount: '',
-        paymentMethod: 'Cash',
-        paymentStatus: 'Paid',
-        notes: '',
-      })
-      await loadContributions()
-      setSelectedReceipt(c)
+  const handleAddSuccess = (
+    createdList: Contribution[],
+    isGroup: boolean,
+    roomNo?: string,
+    totalAmt?: number
+  ) => {
+    loadContributions()
+    if (isGroup) {
+      setGroupReceiptList(createdList)
+      setGroupRoomNumber(roomNo || '')
+      setGroupTotalAmount(totalAmt || 0)
+      setGroupReceiptOpen(true)
+    } else {
+      setSelectedReceipt(createdList[0])
       setReceiptOpen(true)
-    } catch (err: unknown) {
-      console.error(err)
-      toast.error(err instanceof Error ? err.message : 'Failed to record contribution')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -145,10 +95,7 @@ export default function MemberDashboard() {
         </div>
 
         <Button
-          onClick={() => {
-            setForm({ contributorName: '', mobile: '', houseNumber: '', amount: '', paymentMethod: 'Cash', paymentStatus: 'Paid', notes: '' })
-            setModalOpen(true)
-          }}
+          onClick={() => setAddModalOpen(true)}
           icon={<Plus size={16} />}
           className="bg-white !text-saffron-700 hover:!bg-saffron-50 font-bold shadow-md"
         >
@@ -186,12 +133,9 @@ export default function MemberDashboard() {
             <Button
               size="sm"
               icon={<Plus size={14} />}
-              onClick={() => {
-                setForm({ contributorName: '', mobile: '', houseNumber: '', amount: '', paymentMethod: 'Cash', paymentStatus: 'Paid', notes: '' })
-                setModalOpen(true)
-              }}
+              onClick={() => setAddModalOpen(true)}
             >
-              Record Collection
+              Record Collection (Single / Room)
             </Button>
             <Button size="sm" variant="outline" icon={<Receipt size={14} />} onClick={() => navigate('/member/receipts')}>
               View All Collections ({myContribs.length})
@@ -218,10 +162,7 @@ export default function MemberDashboard() {
               <Button
                 size="sm"
                 icon={<Plus size={14} />}
-                onClick={() => {
-                  setForm({ contributorName: '', mobile: '', houseNumber: '', amount: '', paymentMethod: 'Cash', paymentStatus: 'Paid', notes: '' })
-                  setModalOpen(true)
-                }}
+                onClick={() => setAddModalOpen(true)}
               >
                 Record First Collection
               </Button>
@@ -265,114 +206,32 @@ export default function MemberDashboard() {
         </Card>
       </div>
 
-      {/* Record New Contribution Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Record New Contribution"
-        maxWidth="max-w-lg"
-        footer={<>
-          <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
-          <Button onClick={handleRecordContribution} loading={saving}>Save &amp; Generate Receipt</Button>
-        </>}
-      >
-        <form onSubmit={handleRecordContribution} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Contributor Name *"
-              value={form.contributorName}
-              onChange={(e) => setForm(f => ({ ...f, contributorName: e.target.value }))}
-              placeholder="e.g. Ramesh Kumar"
-              required
-              autoFocus
-            />
-            <Input
-              label="Mobile *"
-              type="tel"
-              value={form.mobile}
-              onChange={(e) => setForm(f => ({ ...f, mobile: e.target.value }))}
-              placeholder="10-digit mobile"
-              required
-            />
-            <Input
-              label="House Number"
-              value={form.houseNumber}
-              onChange={(e) => setForm(f => ({ ...f, houseNumber: e.target.value }))}
-              placeholder="Flat 101 / Door No"
-            />
-            <Input
-              label="Amount (₹) *"
-              type="number"
-              value={form.amount}
-              onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
-              placeholder="e.g. 501, 1001"
-              required
-            />
-          </div>
+      {/* Add / Group Contribution Modal */}
+      <AddContributionModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        festival={festival}
+        user={user}
+        departments={departments}
+        onSuccess={handleAddSuccess}
+      />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Payment Method</label>
-              <select
-                value={form.paymentMethod}
-                onChange={(e) => setForm(f => ({ ...f, paymentMethod: e.target.value as PaymentMethod }))}
-                className="input-field mt-1"
-              >
-                {PAYMENT_METHODS.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Payment Status</label>
-              <select
-                value={form.paymentStatus}
-                onChange={(e) => setForm(f => ({ ...f, paymentStatus: e.target.value as PaymentStatus }))}
-                className="input-field mt-1"
-              >
-                {PAYMENT_STATUSES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Dynamic UPI QR Code for Devotee Scan */}
-          {(form.paymentMethod === 'UPI' || form.paymentMethod === 'Online') && (
-            <div className="p-3.5 bg-gradient-to-b from-orange-50/70 to-amber-50/50 border-2 border-amber-300 rounded-2xl text-center transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-amber-900">Devotee Scan &amp; Pay QR</span>
-                <span className="text-[11px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                  ₹0 Fee Direct Bank Transfer
-                </span>
-              </div>
-
-              <UpiQrCode
-                upiId={festival?.upiId || 'srinageshwaryouth@upi'}
-                payeeName={festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth'}
-                amount={form.amount}
-                note={`Ganesh Chanda - ${form.contributorName || 'Devotee'}`}
-                size={170}
-                showDetails={true}
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-              className="input-field mt-1 resize-none"
-              rows={2}
-              placeholder="Optional notes or blessings"
-            />
-          </div>
-        </form>
-      </Modal>
-
-      {/* Receipt Modal */}
+      {/* Single Receipt Modal */}
       <ReceiptModal
         open={receiptOpen}
         onClose={() => setReceiptOpen(false)}
         contribution={selectedReceipt}
         festival={festival}
+      />
+
+      {/* Group Receipt Modal */}
+      <GroupReceiptModal
+        open={groupReceiptOpen}
+        onClose={() => setGroupReceiptOpen(false)}
+        contributions={groupReceiptList}
+        festival={festival}
+        roomNumber={groupRoomNumber}
+        totalAmount={groupTotalAmount}
       />
     </div>
   )

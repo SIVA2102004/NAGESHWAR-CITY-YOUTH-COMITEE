@@ -25,19 +25,18 @@ export default function UpiQrCode({
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   const validAmount = numAmount && !isNaN(numAmount) && numAmount > 0 ? numAmount.toFixed(2) : undefined
 
-  // Construct NPCI standard UPI URI
-  const params = new URLSearchParams()
-  params.append('pa', upiId)
-  params.append('pn', payeeName)
-  if (validAmount) {
-    params.append('am', validAmount)
-  }
-  params.append('cu', 'INR')
-  if (note) {
-    params.append('tn', note)
-  }
+  const cleanUpiId = (upiId || 'srinageshwaryouth@upi').trim()
+  const cleanPayee = (payeeName || 'Ganesh Committee').trim()
+  const cleanNote  = (note || 'Ganesh Chanda').trim().replace(/[^a-zA-Z0-9_\- ]/g, '')
 
-  const upiUrl = `upi://pay?${params.toString()}`
+  // Construct NPCI standard UPI URI (Literal @ in pa, standard encoding for pn & tn)
+  let upiUrl = `upi://pay?pa=${cleanUpiId}&pn=${encodeURIComponent(cleanPayee)}&cu=INR`
+  if (validAmount) {
+    upiUrl += `&am=${validAmount}`
+  }
+  if (cleanNote) {
+    upiUrl += `&tn=${encodeURIComponent(cleanNote)}`
+  }
 
   return (
     <div className={`flex flex-col items-center text-center ${className}`}>
