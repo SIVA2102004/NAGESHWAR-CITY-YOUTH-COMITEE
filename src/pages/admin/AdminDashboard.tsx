@@ -25,6 +25,9 @@ import InviteCodeCard from '../../components/shared/InviteCodeCard'
 import CollectionChart from '../../components/charts/CollectionChart'
 import PaymentMethodChart from '../../components/charts/PaymentMethodChart'
 import ExpenseCategoryChart from '../../components/charts/ExpenseCategoryChart'
+import AddContributionModal from '../../components/contributions/AddContributionModal'
+import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
+import ReceiptModal from '../../components/receipt/ReceiptModal'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
 import type { Contribution, Expense, ActivityLog, Announcement, Department, InviteCode, InviteCodeType } from '../../types'
 import { format } from 'date-fns'
@@ -41,6 +44,15 @@ export default function AdminDashboard() {
   const [volunteerCount, setVolunteerCount] = useState(0)
   const [memberCount, setMemberCount] = useState(0)
   const [deptCount, setDeptCount] = useState(0)
+
+  // Add Contribution Modal State
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [singleReceiptOpen, setSingleReceiptOpen] = useState(false)
+  const [singleReceiptContrib, setSingleReceiptContrib] = useState<Contribution | null>(null)
+  const [groupReceiptOpen, setGroupReceiptOpen] = useState(false)
+  const [groupReceiptList, setGroupReceiptList] = useState<Contribution[]>([])
+  const [groupRoomNumber, setGroupRoomNumber] = useState('')
+  const [groupTotalAmount, setGroupTotalAmount] = useState(0)
 
   // Invite Codes State
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -112,6 +124,12 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex items-center flex-wrap gap-2">
+          <Button
+            icon={<Plus size={15} />}
+            onClick={() => setAddModalOpen(true)}
+          >
+            Add Contribution
+          </Button>
           <Button
             variant="outline"
             icon={<Key size={15} />}
@@ -398,6 +416,44 @@ export default function AdminDashboard() {
           </div>
         </div>
       </Modal>
+
+      {/* Main Add / Group Contribution Modal */}
+      <AddContributionModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        festival={festival}
+        user={user}
+        departments={departments}
+        onSuccess={(createdList, isGroup, roomNo, totalAmt) => {
+          if (isGroup) {
+            setGroupReceiptList(createdList)
+            setGroupRoomNumber(roomNo || '')
+            setGroupTotalAmount(totalAmt || 0)
+            setGroupReceiptOpen(true)
+          } else {
+            setSingleReceiptContrib(createdList[0])
+            setSingleReceiptOpen(true)
+          }
+        }}
+      />
+
+      {/* Single Receipt Modal */}
+      <ReceiptModal
+        open={singleReceiptOpen}
+        onClose={() => setSingleReceiptOpen(false)}
+        contribution={singleReceiptContrib}
+        festival={festival}
+      />
+
+      {/* Group / Room Receipt Modal */}
+      <GroupReceiptModal
+        open={groupReceiptOpen}
+        onClose={() => setGroupReceiptOpen(false)}
+        contributions={groupReceiptList}
+        festival={festival}
+        roomNumber={groupRoomNumber}
+        totalAmount={groupTotalAmount}
+      />
     </div>
   )
 }

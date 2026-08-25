@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
 import {
-  subscribeToContributions, createContribution,
+  subscribeToContributions,
   updateContribution, deleteContribution
 } from '../../services/contributionService'
 import { getDepartmentsByFestival } from '../../services/departmentService'
@@ -19,7 +19,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import SearchFilter from '../../components/ui/SearchFilter'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
-import UpiQrCode from '../../components/shared/UpiQrCode'
+import AddContributionModal from '../../components/contributions/AddContributionModal'
+import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
 import type { Contribution, Department, PaymentMethod, PaymentStatus } from '../../types'
 
@@ -43,21 +44,32 @@ export default function ContributionsPage() {
   const [filterMethod, setFilterMethod] = useState('')
   const [filterDept, setFilterDept] = useState('')
 
-  const [modalOpen, setModalOpen] = useState(false)
+  // Add & Group Modal State
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editingModalOpen, setEditingModalOpen] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
   const [deleting, setDeleting] = useState<Contribution | null>(null)
-  const [receiptOpen, setReceiptOpen] = useState(false)
-  const [receiptContrib, setReceiptContrib] = useState<Contribution | null>(null)
-  const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const [delLoading, setDelLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const [form, setForm] = useState({
+  // Single Receipt Modal
+  const [singleReceiptOpen, setSingleReceiptOpen] = useState(false)
+  const [singleReceiptContrib, setSingleReceiptContrib] = useState<Contribution | null>(null)
+
+  // Group Receipt Modal
+  const [groupReceiptOpen, setGroupReceiptOpen] = useState(false)
+  const [groupReceiptList, setGroupReceiptList] = useState<Contribution[]>([])
+  const [groupRoomNumber, setGroupRoomNumber] = useState('')
+  const [groupTotalAmount, setGroupTotalAmount] = useState(0)
+
+  // Edit Form State
+  const [editForm, setEditForm] = useState({
     contributorName: '',
     mobile: '',
     houseNumber: '',
     amount: '',
-    paymentMethod: 'Cash' as PaymentMethod,
+    paymentMethod: 'UPI' as PaymentMethod,
     paymentStatus: 'Paid' as PaymentStatus,
     departmentId: '',
     departmentName: '',
@@ -81,17 +93,12 @@ export default function ContributionsPage() {
     return matchSearch && matchStatus && matchMethod && matchDept
   })
 
-  const resetForm = () => setForm({
-    contributorName: '', mobile: '', houseNumber: '', amount: '',
-    paymentMethod: 'Cash', paymentStatus: 'Paid',
-    departmentId: departments[0]?.id || '', departmentName: departments[0]?.name || '',
-    notes: '',
-  })
-
-  const openAdd = () => { resetForm(); setEditing(null); setModalOpen(true) }
+  const openAdd = () => {
+    setAddModalOpen(true)
+  }
 
   const openEdit = (c: Contribution) => {
-    setForm({
+    setEditForm({
       contributorName: c.contributorName,
       mobile: c.mobile,
       houseNumber: c.houseNumber || '',
@@ -103,58 +110,62 @@ export default function ContributionsPage() {
       notes: c.notes || '',
     })
     setEditing(c)
-    setModalOpen(true)
+    setEditingModalOpen(true)
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.contributorName || !form.mobile || !form.amount || !festival || !user) {
+    if (!editForm.contributorName || !editForm.mobile || !editForm.amount || !festival || !user || !editing) {
       toast.error('Fill all required fields')
       return
     }
     setSaving(true)
     try {
-      if (editing) {
-        await updateContribution(editing.id, {
-          contributorName: form.contributorName,
-          mobile: form.mobile,
-          houseNumber: form.houseNumber,
-          amount: parseFloat(form.amount),
-          paymentMethod: form.paymentMethod,
-          paymentStatus: form.paymentStatus,
-          departmentId: form.departmentId,
-          departmentName: form.departmentName,
-          notes: form.notes,
-        })
-        toast.success('Contribution updated')
-        await logActivity({ festivalId: festival.id, userId: user.uid, userName: user.name, role: 'admin',
-          action: 'CONTRIBUTION_UPDATED', entityType: 'contribution', entityId: editing.id,
-          description: `Updated contribution for ${form.contributorName}` })
-      } else {
-        const dept = departments.find(d => d.id === form.departmentId)
-        const c = await createContribution({
-          festivalId: festival.id,
-          festivalYear: festival.festivalYear,
-          contributorName: form.contributorName,
-          mobile: form.mobile,
-          houseNumber: form.houseNumber,
-          amount: parseFloat(form.amount),
-          paymentMethod: form.paymentMethod,
-          paymentStatus: form.paymentStatus,
-          collectedBy: user.name,
-          collectedByUid: user.uid,
-          departmentId: form.departmentId,
-          departmentName: dept?.name || form.departmentName || 'General',
-          notes: form.notes,
-          createdBy: user.uid,
-        })
-        toast.success('Contribution saved!')
-        await logActivity({ festivalId: festival.id, userId: user.uid, userName: user.name, role: 'admin',
-          action: 'CONTRIBUTION_CREATED', entityType: 'contribution', entityId: c.id,
-          description: `${form.contributorName} contributed ${formatCurrency(parseFloat(form.amount))}` })
-      }
-      setModalOpen(false)
-    } catch { toast.error('Save failed') } finally { setSaving(false) }
+      await updateContribution(editing.id, {
+        contributorName: editForm.contributorName,
+        mobile: editForm.mobile,
+        houseNumber: editForm.houseNumber,
+        amount: parseFloat(editForm.amount),
+        paymentMethod: editForm.paymentMethod,
+        paymentStatus: editForm.paymentStatus,
+        departmentId: editForm.departmentId,
+        departmentName: editForm.departmentName,
+        notes: editForm.notes,
+      })
+      toast.success('Contribution updated')
+      await logActivity({
+        festivalId: festival.id,
+        userId: user.uid,
+        userName: user.name,
+        role: 'admin',
+        action: 'CONTRIBUTION_UPDATED',
+        entityType: 'contribution',
+        entityId: editing.id,
+        description: `Updated contribution for ${editForm.contributorName}`
+      })
+      setEditingModalOpen(false)
+    } catch {
+      toast.error('Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddSuccess = (
+    createdList: Contribution[],
+    isGroup: boolean,
+    roomNo?: string,
+    totalAmt?: number
+  ) => {
+    if (isGroup) {
+      setGroupReceiptList(createdList)
+      setGroupRoomNumber(roomNo || '')
+      setGroupTotalAmount(totalAmt || 0)
+      setGroupReceiptOpen(true)
+    } else {
+      setSingleReceiptContrib(createdList[0])
+      setSingleReceiptOpen(true)
+    }
   }
 
   const handleDelete = async () => {
@@ -275,86 +286,94 @@ export default function ContributionsPage() {
         </div>
       )}
 
+      {/* Main Add / Group Contribution Modal */}
+      <AddContributionModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        festival={festival}
+        user={user}
+        departments={departments}
+        onSuccess={handleAddSuccess}
+      />
+
+      {/* Edit Single Contribution Modal */}
       <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Contribution' : 'Add Contribution'}
+        open={editingModalOpen}
+        onClose={() => setEditingModalOpen(false)}
+        title="Edit Contribution"
         maxWidth="max-w-lg"
         footer={
           <>
-            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} loading={saving}>{editing ? 'Update' : 'Save'}</Button>
+            <Button variant="outline" onClick={() => setEditingModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSave} loading={saving}>Update</Button>
           </>
         }
       >
-        <form onSubmit={handleSave} className="space-y-3">
+        <form onSubmit={handleEditSave} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Contributor Name" value={form.contributorName} onChange={e => setForm(f=>({...f,contributorName:e.target.value}))} required />
-            <Input label="Mobile" type="tel" value={form.mobile} onChange={e => setForm(f=>({...f,mobile:e.target.value}))} required />
-            <Input label="House Number" value={form.houseNumber} onChange={e => setForm(f=>({...f,houseNumber:e.target.value}))} />
-            <Input label="Amount (?)" type="number" value={form.amount} onChange={e => setForm(f=>({...f,amount:e.target.value}))} required />
+            <Input label="Contributor Name" value={editForm.contributorName} onChange={e => setEditForm(f=>({...f,contributorName:e.target.value}))} required />
+            <Input label="Mobile" type="tel" value={editForm.mobile} onChange={e => setEditForm(f=>({...f,mobile:e.target.value}))} required />
+            <Input label="House Number" value={editForm.houseNumber} onChange={e => setEditForm(f=>({...f,houseNumber:e.target.value}))} />
+            <Input label="Amount (₹)" type="number" value={editForm.amount} onChange={e => setEditForm(f=>({...f,amount:e.target.value}))} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700">Payment Method</label>
-              <select value={form.paymentMethod} onChange={e => setForm(f=>({...f,paymentMethod:e.target.value as PaymentMethod}))}
-                className="input-field mt-1">
+              <label className="text-xs font-bold text-gray-700 block mb-1">Payment Method</label>
+              <select value={editForm.paymentMethod} onChange={e => setEditForm(f=>({...f,paymentMethod:e.target.value as PaymentMethod}))}
+                className="input-field">
                 {PAYMENT_METHODS.map(m => <option key={m}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Payment Status</label>
-              <select value={form.paymentStatus} onChange={e => setForm(f=>({...f,paymentStatus:e.target.value as PaymentStatus}))}
-                className="input-field mt-1">
+              <label className="text-xs font-bold text-gray-700 block mb-1">Payment Status</label>
+              <select value={editForm.paymentStatus} onChange={e => setEditForm(f=>({...f,paymentStatus:e.target.value as PaymentStatus}))}
+                className="input-field">
                 {PAYMENT_STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Dynamic UPI QR Code */}
-          {(form.paymentMethod === 'UPI' || form.paymentMethod === 'Online') && (
-            <div className="p-3 bg-orange-50/70 border-2 border-amber-300 rounded-2xl text-center">
-              <p className="text-xs font-bold text-amber-900 mb-1.5">Devotee Instant Scan &amp; Pay</p>
-              <UpiQrCode
-                upiId={festival?.upiId || 'srinageshwaryouth@upi'}
-                payeeName={festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth'}
-                amount={form.amount}
-                note={`Ganesh Chanda - ${form.contributorName || 'Devotee'}`}
-                size={160}
-                showDetails={true}
-              />
-            </div>
-          )}
-
           <div>
-            <label className="text-sm font-medium text-gray-700">Department</label>
+            <label className="text-xs font-bold text-gray-700 block mb-1">Department</label>
             <select
-              value={form.departmentId}
+              value={editForm.departmentId}
               onChange={e => {
                 const dept = departments.find(d => d.id === e.target.value)
-                setForm(f => ({ ...f, departmentId: e.target.value, departmentName: dept?.name || '' }))
+                setEditForm(f => ({ ...f, departmentId: e.target.value, departmentName: dept?.name || '' }))
               }}
-              className="input-field mt-1"
+              className="input-field"
             >
               <option value="">-- Select Department --</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))}
-              className="input-field mt-1 resize-none" rows={2} />
+            <label className="text-xs font-bold text-gray-700 block mb-1">Notes</label>
+            <textarea value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))}
+              className="input-field resize-none text-xs" rows={2} />
           </div>
         </form>
       </Modal>
 
+      {/* Single Receipt Modal */}
       <ReceiptModal
-        open={receiptOpen}
-        onClose={() => setReceiptOpen(false)}
-        contribution={receiptContrib}
+        open={singleReceiptOpen}
+        onClose={() => setSingleReceiptOpen(false)}
+        contribution={singleReceiptContrib}
         festival={festival}
       />
 
+      {/* Group / Room Receipt Modal */}
+      <GroupReceiptModal
+        open={groupReceiptOpen}
+        onClose={() => setGroupReceiptOpen(false)}
+        contributions={groupReceiptList}
+        festival={festival}
+        roomNumber={groupRoomNumber}
+        totalAmount={groupTotalAmount}
+      />
+
+      {/* Delete Confirmation */}
       <ConfirmDialog
         open={confirmDel}
         onClose={() => { setConfirmDel(false); setDeleting(null) }}
