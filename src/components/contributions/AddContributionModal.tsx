@@ -76,10 +76,10 @@ export default function AddContributionModal({
   const [groupUpiUtr, setGroupUpiUtr] = useState('')
 
   const [members, setMembers] = useState<GroupMemberRow[]>([
-    { id: '1', name: '', mobile: '', amount: '200' },
-    { id: '2', name: '', mobile: '', amount: '200' },
-    { id: '3', name: '', mobile: '', amount: '200' },
-    { id: '4', name: '', mobile: '', amount: '200' },
+    { id: '1', name: '', mobile: '', amount: '' },
+    { id: '2', name: '', mobile: '', amount: '' },
+    { id: '3', name: '', mobile: '', amount: '' },
+    { id: '4', name: '', mobile: '', amount: '' },
   ])
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function AddContributionModal({
 
   const addMemberRow = () => {
     const newId = Date.now().toString()
-    setMembers((prev) => [...prev, { id: newId, name: '', mobile: '', amount: '200' }])
+    setMembers((prev) => [...prev, { id: newId, name: '', mobile: '', amount: '' }])
   }
 
   const removeMemberRow = (id: string) => {
@@ -120,7 +120,7 @@ export default function AddContributionModal({
         id: (i + 1).toString(),
         name: members[i]?.name || '',
         mobile: members[i]?.mobile || '',
-        amount: members[i]?.amount || '200',
+        amount: members[i]?.amount || '',
       })
     }
     setMembers(newMembers)
