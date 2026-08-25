@@ -101,10 +101,11 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
     `📅 *Date:* ${formatDate(contribution.createdAt)}`,
     `🚩 *Department:* ${contribution.departmentName || 'Festival Committee'}`,
     `🤝 *Collected By:* ${contribution.collectedBy}`,
+    contribution.notes ? `📝 *Ref / Notes:* ${contribution.notes}` : '',
     '',
     '🙏 *May Lord Ganesha bless you and your family with health, wealth & wisdom!*',
     '🚩 *Ganpati Bappa Morya!*',
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 
   const wLink = whatsappLink(contribution.mobile, whatsappMsg)
 

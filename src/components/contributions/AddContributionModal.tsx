@@ -63,6 +63,7 @@ export default function AddContributionModal({
     departmentId: '',
     departmentName: '',
     notes: '',
+    upiUtr: '',
   })
 
   // Group Form State
@@ -72,6 +73,7 @@ export default function AddContributionModal({
   const [groupDepartmentId, setGroupDepartmentId] = useState('')
   const [groupDepartmentName, setGroupDepartmentName] = useState('')
   const [groupNotes, setGroupNotes] = useState('')
+  const [groupUpiUtr, setGroupUpiUtr] = useState('')
 
   const [members, setMembers] = useState<GroupMemberRow[]>([
     { id: '1', name: '', mobile: '', amount: '200' },
@@ -147,6 +149,13 @@ export default function AddContributionModal({
         }
 
         const dept = departments.find((d) => d.id === singleForm.departmentId)
+        const combinedNotes = [
+          singleForm.upiUtr.trim() ? `UPI Ref/UTR: ${singleForm.upiUtr.trim()}` : '',
+          singleForm.notes.trim(),
+        ]
+          .filter(Boolean)
+          .join(' • ')
+
         const c = await createContribution({
           festivalId: festival.id,
           festivalYear: festival.festivalYear || '2026',
@@ -160,7 +169,7 @@ export default function AddContributionModal({
           collectedByUid: user.uid,
           departmentId: singleForm.departmentId || user.departmentId || 'general',
           departmentName: dept?.name || singleForm.departmentName || user.departmentName || 'General',
-          notes: singleForm.notes.trim() || undefined,
+          notes: combinedNotes || undefined,
           createdBy: user.uid,
         })
 
@@ -197,6 +206,7 @@ export default function AddContributionModal({
           const amountNum = parseFloat(member.amount) || 0
           const noteText = [
             roomNumber ? `Room/Flat: ${roomNumber}` : '',
+            groupUpiUtr.trim() ? `UPI Ref/UTR: ${groupUpiUtr.trim()}` : '',
             `Group Contribution (${validMembers.length} Members)`,
             groupNotes.trim(),
           ]
@@ -395,18 +405,40 @@ export default function AddContributionModal({
               </div>
             </div>
 
-            {/* Dynamic UPI QR for Single */}
+            {/* Dynamic UPI QR for Single with Volunteer Tag */}
             {(singleForm.paymentMethod === 'UPI' || singleForm.paymentMethod === 'Online') && (
-              <div className="p-3 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl text-center">
-                <p className="text-xs font-black text-amber-900 mb-1">Devotee Instant Scan &amp; Pay</p>
+              <div className="p-3 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl text-center space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-900">Devotee Instant Scan &amp; Pay</span>
+                  <span className="text-[10px] font-extrabold text-saffron-800 bg-saffron-100 px-2 py-0.5 rounded-full font-mono">
+                    Tag: VOL_{(user?.name || 'ADMIN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8)}
+                  </span>
+                </div>
+
                 <UpiQrCode
                   upiId={festival?.upiId || 'srinageshwaryouth@upi'}
                   payeeName={festival?.upiPayeeName || festival?.committeeName || 'Ganesh Committee'}
                   amount={singleForm.amount}
-                  note={`Ganesh Chanda - ${singleForm.contributorName || 'Devotee'}`}
+                  note={`VOL_${(user?.name || 'ADMIN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8)}_${singleForm.houseNumber ? `RM${singleForm.houseNumber.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6)}` : 'DEV'}`}
                   size={150}
                   showDetails={true}
                 />
+
+                <p className="text-[11px] text-gray-500">
+                  Bank SMS will tag <strong>VOL_{(user?.name || 'ADMIN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8)}</strong> for automatic volunteer credit alert.
+                </p>
+
+                {/* Optional UTR Input */}
+                <div className="text-left pt-1">
+                  <Input
+                    label="UPI Ref / UTR No (12 Digits, from Devotee Screen - Optional)"
+                    value={singleForm.upiUtr}
+                    onChange={(e) => setSingleForm((f) => ({ ...f, upiUtr: e.target.value }))}
+                    placeholder="e.g. 423819283192"
+                    maxLength={12}
+                    style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}
+                  />
+                </div>
               </div>
             )}
 
@@ -610,14 +642,14 @@ export default function AddContributionModal({
 
               {/* Combined QR Code for Group */}
               {(groupPaymentMethod === 'UPI' || groupPaymentMethod === 'Online') && (
-                <div className="bg-white/90 p-3.5 rounded-2xl border border-amber-200 text-center shadow-xs">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="bg-white/90 p-3.5 rounded-2xl border border-amber-200 text-center shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-amber-900 flex items-center gap-1">
                       <QrCode size={14} className="text-saffron-600" />
                       1 Combined UPI QR Code for Entire Room
                     </span>
-                    <span className="text-[11px] font-extrabold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                      Pay Total {formatCurrency(groupTotalAmount)}
+                    <span className="text-[10px] font-extrabold text-saffron-800 bg-saffron-100 px-2 py-0.5 rounded-full font-mono">
+                      Tag: VOL_{(user?.name || 'ADMIN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8)}
                     </span>
                   </div>
 
@@ -625,15 +657,26 @@ export default function AddContributionModal({
                     upiId={festival?.upiId || 'srinageshwaryouth@upi'}
                     payeeName={festival?.upiPayeeName || festival?.committeeName || 'Ganesh Committee'}
                     amount={groupTotalAmount.toString()}
-                    note={`Ganesh Chanda - ${roomNumber ? `Room ${roomNumber}` : 'Room'} (${members.length} Members)`}
+                    note={`VOL_${(user?.name || 'ADMIN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8)}_${roomNumber ? `RM${roomNumber.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6)}` : 'GRP'}`}
                     size={170}
                     showDetails={true}
                   />
 
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    Any 1 person from the room can scan this single QR to pay the combined ₹{groupTotalAmount}.
-                    Individual receipts will be automatically sent to all {members.length} members!
+                  <p className="text-[11px] text-gray-500">
+                    Any 1 person can scan this single QR to pay <strong>{formatCurrency(groupTotalAmount)}</strong> directly to the committee account. Bank SMS alerts volunteer <strong>VOL_{(user?.name || 'ADMIN').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8)}</strong>!
                   </p>
+
+                  {/* Optional UTR Input for Group */}
+                  <div className="text-left pt-1">
+                    <Input
+                      label="UPI Ref / UTR No (12 Digits, from Devotee Screen - Optional)"
+                      value={groupUpiUtr}
+                      onChange={(e) => setGroupUpiUtr(e.target.value)}
+                      placeholder="e.g. 423819283192"
+                      maxLength={12}
+                      style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}
+                    />
+                  </div>
                 </div>
               )}
             </div>

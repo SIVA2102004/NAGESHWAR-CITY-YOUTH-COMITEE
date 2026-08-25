@@ -41,7 +41,7 @@ ${c.houseNumber ? `🏠 *Room / Flat:* ${c.houseNumber}\n` : ''}💰 *Amount Pai
 💳 *Payment Mode:* ${c.paymentMethod} (${c.paymentStatus})
 🏛️ *Department:* ${c.departmentName || 'General'}
 🙏 *Collected By:* ${c.collectedBy}
-----------------------------------------
+${c.notes ? `📝 *Ref / Details:* ${c.notes}\n` : ''}----------------------------------------
 *May Lord Ganesha bestow good health, wisdom, and prosperity upon you and your family!*
 🌸 *Ganpati Bappa Morya!* 🌸`
 
