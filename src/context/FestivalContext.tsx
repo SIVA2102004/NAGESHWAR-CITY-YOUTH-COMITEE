@@ -14,6 +14,8 @@ import {
 } from '../services/festivalService'
 import type { Festival } from '../types'
 
+import { useAuth } from './AuthContext'
+
 interface FestivalContextValue {
   festival:          Festival | null
   allFestivals:      Festival[]
@@ -37,15 +39,27 @@ interface FestivalContextValue {
 const FestivalContext = createContext<FestivalContextValue | null>(null)
 
 export function FestivalProvider({ children }: { children: ReactNode }) {
+  const { user, isSuperAdmin } = useAuth()
   const [festival, setFestival] = useState<Festival | null>(null)
   const [allFestivals, setAllFestivals] = useState<Festival[]>([])
   const [festivalLoading, setFestivalLoading] = useState(true)
 
-  const loadFestivals = async () => {
+  const loadFestivals = async (preferredFestivalId?: string) => {
     try {
       const list = await getAllFestivals()
       setAllFestivals(list)
 
+      // Priority 1: User's assigned festival if non-superadmin
+      if (preferredFestivalId) {
+        const userFest = list.find((f) => f.id === preferredFestivalId) || (await getFestival(preferredFestivalId))
+        if (userFest) {
+          setFestival(userFest)
+          localStorage.setItem('active_festival_id', userFest.id)
+          return
+        }
+      }
+
+      // Priority 2: Saved festival in localStorage (for SuperAdmin browsing)
       const savedId = localStorage.getItem('active_festival_id')
       if (savedId) {
         const found = list.find((f) => f.id === savedId)
@@ -55,6 +69,7 @@ export function FestivalProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Priority 3: First available festival
       if (list.length > 0) {
         setFestival(list[0])
         localStorage.setItem('active_festival_id', list[0].id)
@@ -70,8 +85,12 @@ export function FestivalProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    loadFestivals()
-  }, [])
+    if (user && !isSuperAdmin && user.festivalId) {
+      loadFestivals(user.festivalId)
+    } else {
+      loadFestivals()
+    }
+  }, [user?.festivalId, isSuperAdmin])
 
   const selectFestival = async (id: string) => {
     setFestivalLoading(true)

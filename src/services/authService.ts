@@ -60,18 +60,19 @@ export async function registerWithInviteCode(params: {
   address?: string
 }): Promise<AppUser> {
   const cleanEmail = params.email.trim().toLowerCase()
-  const festival = await getDefaultFestival()
-  if (!festival) throw new Error('No festival found. Please contact admin.')
 
-  const { valid, inviteCode, error } = await validateInviteCode(params.code, festival.id)
+  // Validate invite code globally across all committees
+  const { valid, inviteCode, error } = await validateInviteCode(params.code)
   if (!valid || !inviteCode) throw new Error(error || 'Invalid invite code.')
+
+  const targetFestivalId = inviteCode.festivalId
 
   // Determine role from code type
   let role: UserRole = 'member'
   if (inviteCode.type === 'ADMIN_INVITE') {
     role = 'admin'
     // Enforce strictly 1 Admin per Committee
-    const existingAdmins = await getUsersByRole(festival.id, 'admin')
+    const existingAdmins = await getUsersByRole(targetFestivalId, 'admin')
     const otherAdmins = existingAdmins.filter(
       (a) => !a.isSuperAdmin && a.email !== 'jakkasivasubramanyam2004@gmail.com'
     )
@@ -109,7 +110,7 @@ export async function registerWithInviteCode(params: {
     }
   }
 
-  // Create / Overwrite Firestore user profile with the newly assigned role
+  // Create / Overwrite Firestore user profile with the newly assigned role & exact festival
   const userProfile: Omit<AppUser, 'createdAt' | 'updatedAt'> = {
     uid,
     name:           params.name,
@@ -118,7 +119,7 @@ export async function registerWithInviteCode(params: {
     role,
     isSuperAdmin:   false, // New admins are never Super Admins
     status:         'active',
-    festivalId:     festival.id,
+    festivalId:     targetFestivalId,
     departmentId:   inviteCode.departmentId,
     departmentName: inviteCode.departmentName,
     inviteCodeUsed: params.code,
@@ -130,7 +131,7 @@ export async function registerWithInviteCode(params: {
   await incrementCodeUsage(inviteCode.id)
 
   await logActivity({
-    festivalId:  festival.id,
+    festivalId:  targetFestivalId,
     userId:      uid,
     userName:    params.name,
     role,

@@ -1,22 +1,25 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Hash, User, Mail, Lock, Phone, Eye, EyeOff, CheckCircle, UserCheck, Users, ShieldCheck, ArrowRight } from 'lucide-react'
+import { Hash, User, Mail, Lock, Phone, Eye, EyeOff, CheckCircle, UserCheck, Users, ShieldCheck, ArrowRight, Building } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { validateInviteCode } from '../../services/inviteCodeService'
-import { getDefaultFestival } from '../../services/festivalService'
+import { getFestival } from '../../services/festivalService'
 import { registerWithInviteCode } from '../../services/authService'
+import { useFestival } from '../../context/FestivalContext'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Badge from '../../components/ui/Badge'
-import type { InviteCode } from '../../types'
+import type { InviteCode, Festival } from '../../types'
 
 type Step = 'code' | 'details' | 'success'
 
 export default function JoinPage() {
   const navigate = useNavigate()
+  const { selectFestival } = useFestival()
   const [step, setStep] = useState<Step>('code')
   const [code, setCode] = useState('')
   const [inviteCode, setInviteCode] = useState<InviteCode | null>(null)
+  const [targetFestival, setTargetFestival] = useState<Festival | null>(null)
   const [validating, setValidating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
@@ -41,11 +44,19 @@ export default function JoinPage() {
     if (!code.trim()) { toast.error('Enter an invite code'); return }
     setValidating(true)
     try {
-      const festival = await getDefaultFestival()
-      if (!festival) { toast.error('No festival configured. Contact admin.'); return }
-      const result = await validateInviteCode(code.trim().toUpperCase(), festival.id)
-      if (!result.valid) { toast.error(result.error || 'Invalid code'); return }
-      setInviteCode(result.inviteCode!)
+      const result = await validateInviteCode(code.trim().toUpperCase())
+      if (!result.valid || !result.inviteCode) {
+        toast.error(result.error || 'Invalid code')
+        return
+      }
+      setInviteCode(result.inviteCode)
+
+      // Fetch the committee info for this code
+      if (result.inviteCode.festivalId) {
+        const fest = await getFestival(result.inviteCode.festivalId)
+        setTargetFestival(fest)
+      }
+
       setStep('details')
     } catch {
       toast.error('Error validating code. Please try again.')
@@ -71,6 +82,12 @@ export default function JoinPage() {
         mobile: form.mobile.trim(),
         address: form.address,
       })
+
+      // Immediately select the user's registered committee
+      if (user.festivalId) {
+        await selectFestival(user.festivalId)
+      }
+
       setRegisteredRole(user.role)
       setStep('success')
       toast.success(`Account created as ${user.role}! 🎉`)
@@ -173,8 +190,11 @@ export default function JoinPage() {
                   )}
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-saffron-200/80 flex items-center justify-between">
-                  <Badge variant="success" dot>Code Validated</Badge>
-                  <span className="font-mono text-xs font-bold text-saffron-800 tracking-wider">{inviteCode.code}</span>
+                  <div className="flex items-center gap-1.5 text-xs text-saffron-900 font-bold">
+                    <Building size={14} className="text-saffron-600" />
+                    <span>{targetFestival?.committeeName || 'Ganesh Committee'}</span>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-saffron-800 tracking-wider bg-white/60 px-2 py-0.5 rounded border border-saffron-200">{inviteCode.code}</span>
                 </div>
               </div>
 
@@ -242,7 +262,7 @@ export default function JoinPage() {
               <div>
                 <h2 className="text-2xl font-black text-gray-900">Registration Complete! 🎉</h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  You are now registered as <strong className="text-saffron-800 uppercase">{registeredRole}</strong> of Sri Nageshwar Youth Committee.
+                  You are now registered as <strong className="text-saffron-800 uppercase">{registeredRole}</strong> of <strong>{targetFestival?.committeeName || 'Ganesh Committee'}</strong>.
                 </p>
               </div>
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, UserCheck, Users, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
+import { useFestival } from '../../context/FestivalContext'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 
@@ -10,6 +11,7 @@ type RoleTab = 'admin' | 'volunteer' | 'member'
 
 export default function LoginPage() {
   const { login, logout, resetPwd } = useAuth()
+  const { selectFestival } = useFestival()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -61,6 +63,11 @@ export default function LoginPage() {
           { duration: 6000 }
         )
         return
+      }
+
+      // Immediately switch festival context to user's assigned committee
+      if (user.festivalId) {
+        await selectFestival(user.festivalId)
       }
 
       toast.success(`Welcome back, ${user.name}! 🙏`)

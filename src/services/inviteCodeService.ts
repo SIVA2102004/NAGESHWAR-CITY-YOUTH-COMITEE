@@ -115,13 +115,13 @@ export async function createInviteCode(params: {
 
 export async function validateInviteCode(
   code: string,
-  festivalId: string
+  festivalId?: string
 ): Promise<{ valid: boolean; inviteCode?: InviteCode; error?: string }> {
-  const q    = query(
-    collection(db, COLLECTION),
-    where('code', '==', code.toUpperCase()),
-    where('festivalId', '==', festivalId)
-  )
+  const constraints = [where('code', '==', code.toUpperCase())]
+  if (festivalId) {
+    constraints.push(where('festivalId', '==', festivalId))
+  }
+  const q    = query(collection(db, COLLECTION), ...constraints)
   const snap = await getDocs(q)
   if (snap.empty) return { valid: false, error: 'Invalid invite code.' }
 
