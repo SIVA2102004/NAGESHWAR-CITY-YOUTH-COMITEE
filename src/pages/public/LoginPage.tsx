@@ -77,12 +77,12 @@ export default function LoginPage() {
         <div className="text-center mb-6">
           <img
             src="/logo.jpg"
-            alt="Sri Nageshwar Youth Logo"
+            alt="Ganesh Committee Logo"
             className="w-24 h-24 mx-auto mb-3 rounded-full object-cover shadow-lg ring-4 ring-gold-400/50"
           />
-          <h1 className="text-3xl font-extrabold text-gray-900">Sri Nageshwar Youth</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900">Ganesh Committee</h1>
           <p className="text-saffron-700 font-semibold mt-1">🙏 Ganpati Bappa Morya 🙏</p>
-          <p className="text-gray-500 text-sm mt-0.5">Marwadi University • Ganesh Festival 2026</p>
+          <p className="text-gray-500 text-sm mt-0.5">Ganesh Festival 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-card-hover p-6 sm:p-8">

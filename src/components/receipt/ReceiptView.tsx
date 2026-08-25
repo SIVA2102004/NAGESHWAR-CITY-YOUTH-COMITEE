@@ -88,10 +88,10 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
   }
 
   const whatsappMsg = [
-    '🙏 *SRI NAGESHWAR YOUTH — MARWADI UNIVERSITY* 🙏',
+    `🙏 *${(festival.committeeName || 'GANESH COMMITTEE').toUpperCase()}* 🙏`,
     '✨ *॥ ॐ गं गणपतये नमः ॥* ✨',
     '',
-    'Dear Devotee, thank you for your generous Chanda contribution for Ganesh Chaturthi 2026!',
+    `Dear Devotee, thank you for your generous Chanda contribution for Ganesh Chaturthi ${festival.festivalYear || '2026'}!`,
     '',
     `🧾 *Receipt No:* ${contribution.receiptNumber}`,
     `👤 *Devotee Name:* ${contribution.contributorName}`,
@@ -125,7 +125,7 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
           <div className="flex justify-center mb-2.5">
             <img
               src="/logo.jpg"
-              alt="Sri Nageshwar Youth Logo"
+              alt="Committee Logo"
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-md ring-4 ring-amber-400/60 border border-amber-500"
             />
           </div>
@@ -133,10 +133,10 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
             ॥ ॐ गं गणपतये नमः ॥
           </p>
           <h2 className="text-lg sm:text-xl font-extrabold text-amber-950 uppercase tracking-wide">
-            {festival.committeeName || 'Sri Nageshwar Youth'}
+            {festival.committeeName || 'Ganesh Committee'}
           </h2>
           <p className="text-xs font-bold text-amber-800">
-            Marwadi University • Ganesh Mahotsav {festival.festivalYear || '2026'}
+            Ganesh Mahotsav {festival.festivalYear || '2026'}
           </p>
           {festival.address && (
             <p className="text-[11px] text-gray-500 mt-0.5">{festival.address}</p>
@@ -226,7 +226,7 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
             <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
               Authorized Signatory
             </p>
-            <p className="text-[9px] text-gray-400">Sri Nageshwar Youth</p>
+            <p className="text-[9px] text-gray-500 font-semibold">{festival.committeeName || 'Ganesh Committee'}</p>
           </div>
         </div>
 

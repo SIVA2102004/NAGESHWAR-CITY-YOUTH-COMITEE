@@ -92,12 +92,12 @@ export default function JoinPage() {
         <div className="text-center mb-6">
           <img
             src="/logo.jpg"
-            alt="Sri Nageshwar Youth Logo"
+            alt="Ganesh Committee Logo"
             className="w-20 h-20 mx-auto mb-3 rounded-full object-cover shadow-lg ring-4 ring-gold-400/50"
           />
           <h1 className="text-3xl font-extrabold text-gray-900">Join Committee</h1>
           <p className="text-saffron-700 font-semibold mt-1">Admin, Coordinator &amp; Volunteer Portal</p>
-          <p className="text-gray-500 text-sm mt-0.5">Sri Nageshwar Youth • Marwadi University</p>
+          <p className="text-gray-500 text-sm mt-0.5">Ganesh Committee • Ganesh Festival 2026</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-card-hover p-6 sm:p-8">
