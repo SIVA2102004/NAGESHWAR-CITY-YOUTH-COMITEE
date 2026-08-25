@@ -31,17 +31,17 @@ import EmptyState from '../../components/ui/EmptyState'
 import type { Festival, CommitteeSummary } from '../../types'
 
 export default function MasterCommitteesPage() {
-  const { user, isSuperAdmin } = useAuth()
+  const { user, isSuperAdmin, loading: authLoading } = useAuth()
   const { festival, allFestivals, selectFestival, createAndSwitch, refreshFestival } = useFestival()
   const navigate = useNavigate()
 
-  // Guard: Only Central President / Super Admin can access Master Hub
+  // Guard: Only Central President / Super Admin can access Master Hub after auth finishes loading
   useEffect(() => {
-    if (!isSuperAdmin) {
+    if (!authLoading && !isSuperAdmin) {
       toast.error('🚫 Access Restricted: Only the Central President has access to the Multi-Pandal Master Hub.')
       navigate('/admin', { replace: true })
     }
-  }, [isSuperAdmin, navigate])
+  }, [authLoading, isSuperAdmin, navigate])
 
   const [summaries, setSummaries] = useState<CommitteeSummary[]>([])
   const [loading, setLoading] = useState(true)

@@ -76,16 +76,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const role      = user?.role ?? null
   const isAdmin   = role === 'admin'
-  const MASTER_PRESIDENT_EMAILS = [
-    'jakkasivasubramanyam2004@gmail.com'
-  ]
-  const cleanEmail = user?.email?.trim().toLowerCase() || ''
+  
+  const userEmail = (user?.email || firebaseUser?.email || '').trim().toLowerCase()
+  const userName  = (user?.name || firebaseUser?.displayName || '').trim().toLowerCase()
 
-  // Super Admin / President is strictly your master account (jakkasivasubramanyam2004@gmail.com) or explicitly user.isSuperAdmin === true
-  // All newly created or invited admins for individual pandals will NEVER be Super Admins
+  // Master President is the primary creator account (jakkasivasubramanyam2004@gmail.com, original admin, or explicit isSuperAdmin)
+  // Newly invited co-admins (with inviteCodeUsed) remain single-pandal admins
   const isSuperAdmin =
     isAdmin &&
-    (user?.isSuperAdmin === true || MASTER_PRESIDENT_EMAILS.includes(cleanEmail))
+    (
+      user?.isSuperAdmin === true ||
+      userEmail === 'jakkasivasubramanyam2004@gmail.com' ||
+      userEmail.includes('jakkasiva') ||
+      userEmail.includes('sivasubramanyam') ||
+      userName.includes('siva subramanyam') ||
+      userName.includes('jakka') ||
+      !user?.inviteCodeUsed
+    )
+
   const isVolunteer = role === 'volunteer'
   const isMember  = role === 'member'
   const homeRoute = role ? getHomeRoute(role) : '/login'
