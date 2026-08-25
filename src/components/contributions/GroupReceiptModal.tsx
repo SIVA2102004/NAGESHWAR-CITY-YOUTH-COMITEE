@@ -1,5 +1,5 @@
-import React from 'react'
-import { CheckCircle, Share2, Receipt, Building, Users, User, ArrowRight, ExternalLink } from 'lucide-react'
+import React, { useState } from 'react'
+import { CheckCircle, Share2, Check, ExternalLink, Send, ArrowRight, User } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
 import { formatCurrency } from '../../utils/formatters'
@@ -22,20 +22,22 @@ export default function GroupReceiptModal({
   roomNumber,
   totalAmount,
 }: GroupReceiptModalProps) {
+  const [sentMap, setSentMap] = useState<Record<string, boolean>>({})
+
   if (!open || contributions.length === 0) return null
 
   const committeeName = festival?.committeeName || 'Ganesh Committee'
   const festivalYear = festival?.festivalYear || '2026'
 
-  const sendMemberWhatsApp = (c: Contribution) => {
+  // Send STRICTLY INDIVIDUAL message containing ONLY this member's details
+  const sendIndividualWhatsApp = (c: Contribution) => {
     const message = `🙏 *${committeeName.toUpperCase()}* 🙏
 *Ganesh Festival ${festivalYear} Official Receipt*
 ----------------------------------------
 🧾 *Receipt No:* ${c.receiptNumber}
 👤 *Devotee Name:* ${c.contributorName}
 📱 *Mobile:* ${c.mobile}
-🏠 *Room / House:* ${c.houseNumber || 'N/A'}
-💰 *Amount Paid:* ${formatCurrency(c.amount)}
+${c.houseNumber ? `🏠 *Room / Flat:* ${c.houseNumber}\n` : ''}💰 *Amount Paid:* ${formatCurrency(c.amount)}
 💳 *Payment Mode:* ${c.paymentMethod} (${c.paymentStatus})
 🏛️ *Department:* ${c.departmentName || 'General'}
 🙏 *Collected By:* ${c.collectedBy}
@@ -46,121 +48,142 @@ export default function GroupReceiptModal({
     const digits = c.mobile.replace(/\D/g, '')
     const phone = digits.startsWith('91') ? digits : `91${digits}`
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    
+    // Mark as sent
+    setSentMap((prev) => ({ ...prev, [c.id || c.receiptNumber]: true }))
     window.open(url, '_blank')
   }
 
-  const sendCombinedWhatsApp = () => {
-    let memberListText = ''
-    contributions.forEach((c, i) => {
-      memberListText += `${i + 1}. *${c.contributorName}* - ${formatCurrency(c.amount)} (Receipt: ${c.receiptNumber})\n`
-    })
+  // Find next unsent member to send quickly
+  const unsentList = contributions.filter((c) => !sentMap[c.id || c.receiptNumber])
+  const allSent = contributions.length > 0 && unsentList.length === 0
 
-    const message = `🙏 *${committeeName.toUpperCase()}* 🙏
-*Group / Room Combined Receipt - ${roomNumber ? `Room ${roomNumber}` : 'Group'}*
-*Ganesh Festival ${festivalYear}*
-----------------------------------------
-👥 *Total Members:* ${contributions.length}
-💰 *Total Room Collection:* ${formatCurrency(totalAmount)}
-💳 *Payment Mode:* ${contributions[0]?.paymentMethod || 'UPI'} (${contributions[0]?.paymentStatus || 'Paid'})
-----------------------------------------
-*Individual Member Breakdown:*
-${memberListText}----------------------------------------
-*May Lord Ganesha bless all of you with happiness and prosperity!*
-🌸 *Ganpati Bappa Morya!* 🌸`
-
-    // Open WhatsApp with first member's number or general share
-    const firstMobile = contributions[0]?.mobile ? contributions[0].mobile.replace(/\D/g, '') : ''
-    const phone = firstMobile.startsWith('91') ? firstMobile : `91${firstMobile}`
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-    window.open(url, '_blank')
+  const handleSendNext = () => {
+    if (unsentList.length > 0) {
+      sendIndividualWhatsApp(unsentList[0])
+    }
   }
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Group Contribution Recorded Successfully!"
+      title="Individual Devotee WhatsApp Receipts"
       maxWidth="max-w-xl"
       footer={
         <div className="flex items-center justify-between w-full">
           <Button variant="outline" onClick={onClose}>
-            Done
+            Done / Close
           </Button>
-          <Button
-            onClick={sendCombinedWhatsApp}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold"
-            icon={<Share2 size={16} />}
-          >
-            Share Room Summary
-          </Button>
+
+          {unsentList.length > 0 ? (
+            <Button
+              onClick={handleSendNext}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold"
+              icon={<Send size={16} />}
+            >
+              Send Next ({unsentList[0].contributorName})
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-100 px-3 py-2 rounded-xl">
+              <Check size={16} className="text-green-600" />
+              All {contributions.length} Devotees Sent!
+            </div>
+          )}
         </div>
       }
     >
       <div className="space-y-4">
-        {/* Success Banner */}
+        {/* Banner */}
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-4 text-white text-center shadow-md">
-          <CheckCircle className="mx-auto mb-1 text-white" size={36} />
-          <h3 className="font-extrabold text-lg">
-            {contributions.length} Receipts Generated!
+          <CheckCircle className="mx-auto mb-1 text-white" size={32} />
+          <h3 className="font-extrabold text-base sm:text-lg">
+            {contributions.length} Individual Receipts Ready!
           </h3>
           <p className="text-xs text-green-100 mt-0.5">
-            {roomNumber ? `Room / Flat: ${roomNumber} • ` : ''} Total Collection: <strong>{formatCurrency(totalAmount)}</strong>
+            Total Collection: <strong>{formatCurrency(totalAmount)}</strong> {roomNumber ? `• Room: ${roomNumber}` : ''}
           </p>
         </div>
 
-        {/* Member Receipts List */}
+        {/* Member-by-Member Send List */}
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Individual Devotee Receipts</span>
-            <span className="text-saffron-700">Click to Send WhatsApp</span>
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+              Send Each Member Their Separate Receipt:
+            </p>
+            <span className="text-xs font-extrabold text-saffron-800">
+              {Object.keys(sentMap).length} of {contributions.length} Sent
+            </span>
+          </div>
 
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {contributions.map((c, index) => (
-              <div
-                key={c.id || index}
-                className="flex items-center justify-between p-3 bg-gray-50 hover:bg-amber-50/60 rounded-2xl border border-gray-200/80 transition-colors"
-              >
-                <div className="min-w-0 pr-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-saffron-100 text-saffron-800 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                      {index + 1}
-                    </span>
-                    <p className="font-extrabold text-gray-900 text-sm truncate">
-                      {c.contributorName}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-1 pl-7">
-                    <span>📱 {c.mobile}</span>
-                    <span className="font-mono text-saffron-700 font-bold">
-                      {c.receiptNumber}
-                    </span>
-                  </div>
-                </div>
+          <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+            {contributions.map((c, index) => {
+              const isSent = sentMap[c.id || c.receiptNumber]
+              return (
+                <div
+                  key={c.id || index}
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
+                    isSent
+                      ? 'bg-green-50/70 border-green-300'
+                      : 'bg-white hover:bg-amber-50/60 border-gray-200 shadow-xs'
+                  }`}
+                >
+                  <div className="min-w-0 pr-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
+                        isSent ? 'bg-green-200 text-green-800' : 'bg-saffron-100 text-saffron-800'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <p className="font-extrabold text-gray-900 text-sm truncate">
+                        {c.contributorName}
+                      </p>
+                    </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm font-black text-green-700">
-                    {formatCurrency(c.amount)}
-                  </span>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1 pl-7 flex-wrap">
+                      <span>📱 {c.mobile}</span>
+                      <span className="font-mono text-saffron-700 font-bold">
+                        {c.receiptNumber}
+                      </span>
+                      <span className="text-green-700 font-black">
+                        {formatCurrency(c.amount)} only
+                      </span>
+                    </div>
+                  </div>
+
                   <button
-                    onClick={() => sendMemberWhatsApp(c)}
-                    className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-xs transition-colors"
-                    title={`Send receipt to ${c.contributorName}`}
+                    type="button"
+                    onClick={() => sendIndividualWhatsApp(c)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold shadow-xs transition-all flex-shrink-0 ${
+                      isSent
+                        ? 'bg-green-100 text-green-800 border border-green-300 hover:bg-green-200'
+                        : 'bg-green-600 hover:bg-green-700 text-white animate-pulse'
+                    }`}
+                    title={`Send individual receipt to ${c.contributorName}`}
                   >
-                    <Share2 size={13} />
-                    <span>WhatsApp</span>
+                    {isSent ? (
+                      <>
+                        <Check size={14} className="text-green-700" />
+                        <span>Sent (Resend)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={14} />
+                        <span>Send to {c.contributorName.split(' ')[0]}</span>
+                      </>
+                    )}
                   </button>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
-        {/* Instructions footer */}
-        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/70 text-xs text-amber-900 flex items-start gap-2">
-          <span className="text-base">💡</span>
+        {/* Info Note */}
+        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+          <span className="text-base">🔒</span>
           <p>
-            Each devotee above has their own separate receipt number in the database. Click <strong>"WhatsApp"</strong> next to each person to send them their personal receipt link!
+            Each WhatsApp message contains <strong>only that member's name and exact amount paid</strong>. Other members' amounts are never shared with anyone else.
           </p>
         </div>
       </div>
