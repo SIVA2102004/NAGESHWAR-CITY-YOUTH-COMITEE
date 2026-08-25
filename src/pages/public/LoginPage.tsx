@@ -34,43 +34,19 @@ export default function LoginPage() {
     try {
       const user = await login(cleanEmail, password)
 
-      // Strict Role Validation Check: User must match the selected tab
-      if (selectedRole === 'admin' && user.role !== 'admin') {
-        await logout()
-        const actualRoleTitle = user.role === 'volunteer' ? 'Coordinator' : 'Volunteer'
-        toast.error(
-          `🚫 Access Denied: This account is registered as a ${actualRoleTitle}, not an Admin. Please select the "${actualRoleTitle}" tab to log in.`,
-          { duration: 6000 }
-        )
-        return
-      }
-
-      if (selectedRole === 'volunteer' && user.role !== 'volunteer') {
-        await logout()
-        const actualRoleTitle = user.role === 'admin' ? 'Administrator' : 'Volunteer'
-        toast.error(
-          `🚫 Access Denied: This account is registered as an ${actualRoleTitle}, not a Coordinator. Please select the "${actualRoleTitle}" tab to log in.`,
-          { duration: 6000 }
-        )
-        return
-      }
-
-      if (selectedRole === 'member' && user.role !== 'member') {
-        await logout()
-        const actualRoleTitle = user.role === 'admin' ? 'Administrator' : 'Coordinator'
-        toast.error(
-          `🚫 Access Denied: This account is registered as an ${actualRoleTitle}, not a Volunteer. Please select the "${actualRoleTitle}" tab to log in.`,
-          { duration: 6000 }
-        )
-        return
-      }
-
       // Immediately switch festival context to user's assigned committee
       if (user.festivalId) {
         await selectFestival(user.festivalId)
       }
 
-      toast.success(`Welcome back, ${user.name}! 🙏`)
+      const roleTitle =
+        user.role === 'admin'
+          ? 'Admin Dashboard'
+          : user.role === 'volunteer'
+          ? 'Coordinator Portal'
+          : 'Volunteer Portal'
+
+      toast.success(`Welcome back, ${user.name}! Entering ${roleTitle} 🙏`)
       const route = user.role === 'admin' ? '/admin' : user.role === 'volunteer' ? '/volunteer' : '/member'
       navigate(route, { replace: true })
     } catch (err: unknown) {
