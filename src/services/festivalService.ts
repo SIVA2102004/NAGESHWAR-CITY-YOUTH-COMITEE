@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   Timestamp,
   query,
@@ -74,6 +75,18 @@ export async function updateFestival(
     ...data,
     updatedAt: serverTimestamp(),
   })
+}
+
+export async function getAllFestivals(): Promise<Festival[]> {
+  const q = query(collection(db, COLLECTION))
+  const snap = await getDocs(q)
+  return snap.docs
+    .map(docToFestival)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+}
+
+export async function deleteFestival(id: string): Promise<void> {
+  await deleteDoc(doc(db, COLLECTION, id))
 }
 
 export async function festivalExists(): Promise<boolean> {

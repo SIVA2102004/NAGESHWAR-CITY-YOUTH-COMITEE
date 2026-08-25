@@ -13,6 +13,7 @@ export interface AppUser {
   role:          UserRole
   status:        UserStatus
   festivalId:    string
+  isSuperAdmin?: boolean
   departmentId?: string
   departmentName?: string
   volunteerId?:  string
@@ -39,6 +40,16 @@ export interface Festival {
   upiPayeeName?: string
   createdAt:     Date
   createdBy:     string
+}
+
+export interface CommitteeSummary {
+  festival:        Festival
+  totalCollection: number
+  totalExpenses:   number
+  netBalance:      number
+  donorCount:      number
+  volunteerCount:  number
+  adminCount:      number
 }
 
 export interface Department {

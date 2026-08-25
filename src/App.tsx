@@ -18,6 +18,7 @@ import SetupPage from './pages/public/SetupPage'
 import NotFoundPage from './pages/public/NotFoundPage'
 
 import AdminDashboard from './pages/admin/AdminDashboard'
+import MasterCommitteesPage from './pages/admin/MasterCommitteesPage'
 import AdminsPage from './pages/admin/AdminsPage'
 import ContributionsPage from './pages/admin/ContributionsPage'
 import MembersPage from './pages/admin/MembersPage'
@@ -68,6 +69,7 @@ export default function App() {
             <Route element={<AdminRoute />}>
               <Route element={<AdminLayout />}>
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/master" element={<MasterCommitteesPage />} />
                 <Route path="/admin/admins" element={<AdminsPage />} />
                 <Route path="/admin/contributions" element={<ContributionsPage />} />
                 <Route path="/admin/members" element={<MembersPage />} />
