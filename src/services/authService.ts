@@ -32,7 +32,8 @@ export async function loginUser(
       name:       cred.user.displayName || cleanEmail.split('@')[0],
       email:      cleanEmail,
       mobile:     '',
-      role:       'admin', // Default to admin access
+      role:       'admin',
+      isSuperAdmin: cleanEmail === 'jakkasivasubramanyam2004@gmail.com',
       status:     'active',
       festivalId: festival?.id || 'default',
     }
@@ -154,15 +155,17 @@ export async function createFirstAdmin(params: {
 }): Promise<AppUser> {
   const hasExisting = await festivalExists()
   // Safety: only allow if no admin exists yet — enforced by Firestore rules too
-  const cred = await createUserWithEmailAndPassword(auth, params.email, params.password)
+  const cleanEmail = params.email.trim().toLowerCase()
+  const cred = await createUserWithEmailAndPassword(auth, cleanEmail, params.password)
   await updateProfile(cred.user, { displayName: params.name })
 
   const userProfile: Omit<AppUser, 'createdAt' | 'updatedAt'> = {
     uid:        cred.user.uid,
     name:       params.name,
-    email:      params.email,
+    email:      cleanEmail,
     mobile:     params.mobile,
     role:       'admin',
+    isSuperAdmin: cleanEmail === 'jakkasivasubramanyam2004@gmail.com',
     status:     'active',
     festivalId: params.festivalId,
     createdBy:  cred.user.uid,
