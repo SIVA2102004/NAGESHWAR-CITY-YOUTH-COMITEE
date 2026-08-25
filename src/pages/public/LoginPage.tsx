@@ -6,10 +6,10 @@ import { useAuth } from '../../context/AuthContext'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 
-type RoleTab = 'all' | 'admin' | 'volunteer' | 'member'
+type RoleTab = 'admin' | 'volunteer' | 'member'
 
 export default function LoginPage() {
-  const { login, resetPwd } = useAuth()
+  const { login, logout, resetPwd } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [resetMode, setResetMode] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetSent, setResetSent] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<RoleTab>('all')
+  const [selectedRole, setSelectedRole] = useState<RoleTab>('admin')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +31,38 @@ export default function LoginPage() {
     setSubmitting(true)
     try {
       const user = await login(cleanEmail, password)
+
+      // Strict Role Validation Check: User must match the selected tab
+      if (selectedRole === 'admin' && user.role !== 'admin') {
+        await logout()
+        const actualRoleTitle = user.role === 'volunteer' ? 'Coordinator' : 'Volunteer'
+        toast.error(
+          `🚫 Access Denied: This account is registered as a ${actualRoleTitle}, not an Admin. Please select the "${actualRoleTitle}" tab to log in.`,
+          { duration: 6000 }
+        )
+        return
+      }
+
+      if (selectedRole === 'volunteer' && user.role !== 'volunteer') {
+        await logout()
+        const actualRoleTitle = user.role === 'admin' ? 'Administrator' : 'Volunteer'
+        toast.error(
+          `🚫 Access Denied: This account is registered as an ${actualRoleTitle}, not a Coordinator. Please select the "${actualRoleTitle}" tab to log in.`,
+          { duration: 6000 }
+        )
+        return
+      }
+
+      if (selectedRole === 'member' && user.role !== 'member') {
+        await logout()
+        const actualRoleTitle = user.role === 'admin' ? 'Administrator' : 'Coordinator'
+        toast.error(
+          `🚫 Access Denied: This account is registered as an ${actualRoleTitle}, not a Volunteer. Please select the "${actualRoleTitle}" tab to log in.`,
+          { duration: 6000 }
+        )
+        return
+      }
+
       toast.success(`Welcome back, ${user.name}! 🙏`)
       const route = user.role === 'admin' ? '/admin' : user.role === 'volunteer' ? '/volunteer' : '/member'
       navigate(route, { replace: true })
@@ -42,7 +74,7 @@ export default function LoginPage() {
         msg.includes('invalid-credential') ||
         msg.includes('INVALID_LOGIN_CREDENTIALS')
       ) {
-        toast.error('Invalid email or password. If you are a new Co-Admin or Volunteer, please join using an Invite Code first.', {
+        toast.error('Invalid email or password. Please verify your credentials or join using an Invite Code first.', {
           duration: 5000,
         })
       } else if (msg.includes('too-many-requests')) {
