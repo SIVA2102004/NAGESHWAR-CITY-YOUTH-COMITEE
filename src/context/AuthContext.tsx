@@ -76,12 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const role      = user?.role ?? null
   const isAdmin   = role === 'admin'
-  // Super Admin / President is the primary creator or explicitly marked isSuperAdmin (NOT an invited local co-admin)
+  // Super Admin / President is strictly the master creator (email: jakkasivasubramanyam2004@gmail.com or explicitly isSuperAdmin === true)
+  // All newly invited or created admins for individual pandals will NOT be Super Admins
   const isSuperAdmin =
     isAdmin &&
     (user?.isSuperAdmin === true ||
-      user?.createdBy === user?.uid ||
-      !user?.inviteCodeUsed)
+      user?.email === 'jakkasivasubramanyam2004@gmail.com' ||
+      (user?.createdBy === user?.uid && !user?.inviteCodeUsed && user?.role === 'admin'))
   const isVolunteer = role === 'volunteer'
   const isMember  = role === 'member'
   const homeRoute = role ? getHomeRoute(role) : '/login'

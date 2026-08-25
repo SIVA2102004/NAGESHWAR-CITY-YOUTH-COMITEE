@@ -7,7 +7,7 @@ import {
   type UserCredential,
 } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { createUserProfile, getUserProfile } from './userService'
+import { createUserProfile, getUserProfile, getUsersByRole } from './userService'
 import { festivalExists, getDefaultFestival } from './festivalService'
 import { validateInviteCode, incrementCodeUsage } from './inviteCodeService'
 import { logActivity } from './activityService'
@@ -67,7 +67,19 @@ export async function registerWithInviteCode(params: {
 
   // Determine role from code type
   let role: UserRole = 'member'
-  if (inviteCode.type === 'ADMIN_INVITE')     role = 'admin'
+  if (inviteCode.type === 'ADMIN_INVITE') {
+    role = 'admin'
+    // Enforce strictly 1 Admin per Committee
+    const existingAdmins = await getUsersByRole(festival.id, 'admin')
+    const otherAdmins = existingAdmins.filter(
+      (a) => !a.isSuperAdmin && a.email !== 'jakkasivasubramanyam2004@gmail.com'
+    )
+    if (otherAdmins.length >= 1) {
+      throw new Error(
+        `This committee already has an Administrator assigned (${otherAdmins[0].name}). Each committee can only have 1 designated Admin.`
+      )
+    }
+  }
   if (inviteCode.type === 'VOLUNTEER_INVITE') role = 'volunteer'
 
   let uid = ''
@@ -103,6 +115,7 @@ export async function registerWithInviteCode(params: {
     email:          cleanEmail,
     mobile:         params.mobile.trim(),
     role,
+    isSuperAdmin:   false, // New admins are never Super Admins
     status:         'active',
     festivalId:     festival.id,
     departmentId:   inviteCode.departmentId,
