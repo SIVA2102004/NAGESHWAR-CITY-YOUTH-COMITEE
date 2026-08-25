@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role      = user?.role ?? null
   const isAdmin   = role === 'admin'
   
+  const userEmail = (user?.email || firebaseUser?.email || '').trim().toLowerCase()
   const FOUNDER_EMAILS = [
     'jakkasivasubramanyamguptha@gmail.com',
     'jakkasivasubramanyam2004@gmail.com',
