@@ -39,6 +39,7 @@ import MyReceiptsPage from './pages/member/MyReceiptsPage'
 import MemberProfilePage from './pages/member/MemberProfilePage'
 
 import LoadingSpinner from './components/ui/LoadingSpinner'
+import PwaInstallPrompt from './components/shared/PwaInstallPrompt'
 
 function HomeRedirect() {
   const { user, loading } = useAuth()
@@ -55,6 +56,7 @@ export default function App() {
       <AuthProvider>
         <FestivalProvider>
           <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+          <PwaInstallPrompt />
           <Routes>
             {/* Public */}
             <Route path="/" element={<HomeRedirect />} />
