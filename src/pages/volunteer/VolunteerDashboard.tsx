@@ -5,13 +5,17 @@ import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
 import { subscribeToVolunteerContributions } from '../../services/contributionService'
 import { getUsersByVolunteer } from '../../services/userService'
+import { getDepartmentsByFestival } from '../../services/departmentService'
 import { subscribeToPublishedAnnouncements } from '../../services/announcementService'
 import StatCard from '../../components/ui/StatCard'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import AnnouncementCard from '../../components/shared/AnnouncementCard'
-import { formatCurrency } from '../../utils/formatters'
-import type { Contribution, AppUser, Announcement } from '../../types'
+import ReceiptModal from '../../components/receipt/ReceiptModal'
+import AddContributionModal from '../../components/contributions/AddContributionModal'
+import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
+import { formatCurrency, formatDate } from '../../utils/formatters'
+import type { Contribution, AppUser, Announcement, Department } from '../../types'
 
 export default function VolunteerDashboard() {
   const { user } = useAuth()
@@ -19,11 +23,24 @@ export default function VolunteerDashboard() {
   const navigate = useNavigate()
 
   const [contributions, setContributions] = useState<Contribution[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [members, setMembers] = useState<AppUser[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [addModalOpen, setAddModalOpen] = useState(false)
+
+  // Single Receipt Modal
+  const [receiptOpen, setReceiptOpen] = useState(false)
+  const [selectedReceipt, setSelectedReceipt] = useState<Contribution | null>(null)
+
+  // Group Receipt Modal
+  const [groupReceiptOpen, setGroupReceiptOpen] = useState(false)
+  const [groupReceiptList, setGroupReceiptList] = useState<Contribution[]>([])
+  const [groupRoomNumber, setGroupRoomNumber] = useState('')
+  const [groupTotalAmount, setGroupTotalAmount] = useState(0)
 
   useEffect(() => {
     if (!festival || !user) return
+    getDepartmentsByFestival(festival.id).then(setDepartments).catch(() => {})
     const unsub1 = subscribeToVolunteerContributions(festival.id, user.uid, setContributions)
     const unsub2 = subscribeToPublishedAnnouncements(festival.id, setAnnouncements)
     getUsersByVolunteer(user.uid).then(setMembers).catch(() => {})
@@ -32,6 +49,23 @@ export default function VolunteerDashboard() {
 
   const myTotal = contributions.filter(c => c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0)
   const pendingCount = contributions.filter(c => c.paymentStatus === 'Pending').length
+
+  const handleAddSuccess = (
+    createdList: Contribution[],
+    isGroup: boolean,
+    roomNo?: string,
+    totalAmt?: number
+  ) => {
+    if (isGroup) {
+      setGroupReceiptList(createdList)
+      setGroupRoomNumber(roomNo || '')
+      setGroupTotalAmount(totalAmt || 0)
+      setGroupReceiptOpen(true)
+    } else {
+      setSelectedReceipt(createdList[0])
+      setReceiptOpen(true)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -44,8 +78,8 @@ export default function VolunteerDashboard() {
             Welcome, {user?.name} • Department: <span className="font-semibold text-saffron-700">{user?.departmentName || 'Assigned'}</span>
           </p>
         </div>
-        <Button icon={<Plus size={16} />} onClick={() => navigate('/volunteer/contributions')}>
-          Record Collection
+        <Button icon={<Plus size={16} />} onClick={() => setAddModalOpen(true)}>
+          Record Collection (Single / Room)
         </Button>
       </div>
 
@@ -70,9 +104,18 @@ export default function VolunteerDashboard() {
                 <div key={c.id} className="flex justify-between items-center py-2 border-b border-gray-50">
                   <div>
                     <p className="font-semibold text-gray-900 text-sm">{c.contributorName}</p>
-                    <p className="text-xs text-gray-400">{c.receiptNumber} � {c.paymentMethod}</p>
+                    <p className="text-xs text-gray-400">{c.receiptNumber} • {c.paymentMethod}</p>
                   </div>
-                  <span className="font-bold text-green-700">{formatCurrency(c.amount)}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-green-700">{formatCurrency(c.amount)}</span>
+                    <button
+                      onClick={() => { setSelectedReceipt(c); setReceiptOpen(true) }}
+                      className="p-1 text-saffron-600 hover:bg-saffron-50 rounded"
+                      title="View Receipt"
+                    >
+                      Receipt
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -91,6 +134,34 @@ export default function VolunteerDashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Add / Group Contribution Modal */}
+      <AddContributionModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        festival={festival}
+        user={user}
+        departments={departments}
+        onSuccess={handleAddSuccess}
+      />
+
+      {/* Single Receipt Modal */}
+      <ReceiptModal
+        open={receiptOpen}
+        onClose={() => setReceiptOpen(false)}
+        contribution={selectedReceipt}
+        festival={festival}
+      />
+
+      {/* Group Receipt Modal */}
+      <GroupReceiptModal
+        open={groupReceiptOpen}
+        onClose={() => setGroupReceiptOpen(false)}
+        contributions={groupReceiptList}
+        festival={festival}
+        roomNumber={groupRoomNumber}
+        totalAmount={groupTotalAmount}
+      />
     </div>
   )
 }

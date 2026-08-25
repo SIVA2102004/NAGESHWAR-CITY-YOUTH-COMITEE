@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, UserCheck, Users, ArrowRight } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, UserCheck, Users, ArrowRight, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [selectedRole, setSelectedRole] = useState<RoleTab>('admin')
+  const [roleWarning, setRoleWarning] = useState<{ message: string; actualRole: RoleTab } | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,8 +32,37 @@ export default function LoginPage() {
       return
     }
     setSubmitting(true)
+    setRoleWarning(null)
     try {
       const user = await login(cleanEmail, password)
+
+      // Strict Role Validation with Warning Symbol ⚠️
+      if (selectedRole === 'admin' && user.role !== 'admin') {
+        await logout()
+        const actualRoleName = user.role === 'volunteer' ? 'Coordinator' : 'Volunteer'
+        const warnText = `⚠️ Access Denied: You are registered as a ${actualRoleName}, not an Admin. Please select the "${actualRoleName}" tab below to log in.`
+        setRoleWarning({ message: warnText, actualRole: user.role as RoleTab })
+        toast.error(warnText, { duration: 6000, icon: '⚠️' })
+        return
+      }
+
+      if (selectedRole === 'volunteer' && user.role !== 'volunteer') {
+        await logout()
+        const actualRoleName = user.role === 'admin' ? 'Administrator' : 'Volunteer'
+        const warnText = `⚠️ Access Denied: You are registered as an ${actualRoleName}, not a Coordinator. Please select the "${actualRoleName}" tab below to log in.`
+        setRoleWarning({ message: warnText, actualRole: user.role as RoleTab })
+        toast.error(warnText, { duration: 6000, icon: '⚠️' })
+        return
+      }
+
+      if (selectedRole === 'member' && user.role !== 'member') {
+        await logout()
+        const actualRoleName = user.role === 'admin' ? 'Administrator' : 'Coordinator'
+        const warnText = `⚠️ Access Denied: You are registered as an ${actualRoleName}, not a Ground Volunteer. Please select the "${actualRoleName}" tab below to log in.`
+        setRoleWarning({ message: warnText, actualRole: user.role as RoleTab })
+        toast.error(warnText, { duration: 6000, icon: '⚠️' })
+        return
+      }
 
       // Immediately switch festival context to user's assigned committee
       if (user.festivalId) {
@@ -103,6 +133,31 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-card-hover p-6 sm:p-8">
           {!resetMode ? (
             <>
+              {/* Role Access Denied Warning Banner */}
+              {roleWarning && (
+                <div className="mb-5 p-3.5 bg-red-50 border-2 border-red-400 rounded-2xl flex items-start gap-3 text-red-950 animate-shake shadow-sm">
+                  <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0 text-red-600">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div className="text-xs flex-1">
+                    <p className="font-extrabold text-sm text-red-900 flex items-center gap-1.5">
+                      <span>⚠️ Role Access Restricted</span>
+                    </p>
+                    <p className="mt-1 text-red-800 leading-relaxed">{roleWarning.message}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedRole(roleWarning.actualRole)
+                        setRoleWarning(null)
+                      }}
+                      className="mt-2.5 inline-flex items-center gap-1.5 font-bold text-xs bg-red-600 text-white px-3 py-1.5 rounded-xl hover:bg-red-700 transition-colors shadow-xs"
+                    >
+                      Switch to {roleWarning.actualRole === 'admin' ? 'Admin' : roleWarning.actualRole === 'volunteer' ? 'Coordinator' : 'Volunteer'} Tab
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Role Indicator Pills */}
               <div className="mb-6">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 text-center">

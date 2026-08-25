@@ -77,21 +77,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const role      = user?.role ?? null
   const isAdmin   = role === 'admin'
   
-  const userEmail = (user?.email || firebaseUser?.email || '').trim().toLowerCase()
-  const userName  = (user?.name || firebaseUser?.displayName || '').trim().toLowerCase()
+  const FOUNDER_EMAILS = [
+    'jakkasivasubramanyamguptha@gmail.com',
+    'jakkasivasubramanyam2004@gmail.com',
+  ]
 
-  // Master President is the primary creator account (jakkasivasubramanyam2004@gmail.com, original admin, or explicit isSuperAdmin)
-  // Newly invited co-admins (with inviteCodeUsed) remain single-pandal admins
+  // Master President / Founder is strictly the project founder (jakkasivasubramanyamguptha@gmail.com)
+  // All newly created admins for individual committees will ONLY see their own committee and never All Pandals (Master)
   const isSuperAdmin =
     isAdmin &&
     (
-      user?.isSuperAdmin === true ||
-      userEmail === 'jakkasivasubramanyam2004@gmail.com' ||
-      userEmail.includes('jakkasiva') ||
-      userEmail.includes('sivasubramanyam') ||
-      userName.includes('siva subramanyam') ||
-      userName.includes('jakka') ||
-      !user?.inviteCodeUsed
+      FOUNDER_EMAILS.includes(userEmail) ||
+      userEmail.includes('jakkasivasubramanyamguptha') ||
+      userEmail.includes('jakkasivasubramanyam') ||
+      user?.isSuperAdmin === true
     )
 
   const isVolunteer = role === 'volunteer'
