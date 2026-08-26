@@ -83,7 +83,29 @@ export default function ContributionsPage() {
     return unsub
   }, [festival])
 
-  const filtered = contributions.filter(c => {
+  const [filterCollector, setFilterCollector] = useState<'all' | 'mine'>('all')
+
+  const myContributions = contributions.filter(
+    c => c.collectedByUid === user?.uid || (user?.name && c.collectedBy.toLowerCase() === user.name.toLowerCase())
+  )
+  const myTotalPaid = myContributions
+    .filter(c => c.paymentStatus === 'Paid')
+    .reduce((s, c) => s + c.amount, 0)
+
+  const totalCollectedAll = contributions
+    .filter(c => c.paymentStatus === 'Paid')
+    .reduce((s, c) => s + c.amount, 0)
+
+  // Payment Method Breakdown for current view
+  const baseList = filterCollector === 'mine' ? myContributions : contributions
+  const methodStats = {
+    UPI: baseList.filter(c => c.paymentMethod === 'UPI' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+    Cash: baseList.filter(c => c.paymentMethod === 'Cash' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+    Online: baseList.filter(c => c.paymentMethod === 'Online' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+    Cheque: baseList.filter(c => c.paymentMethod === 'Cheque' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+  }
+
+  const filtered = baseList.filter(c => {
     const q = search.toLowerCase()
     const matchSearch = !q || c.contributorName.toLowerCase().includes(q) ||
       c.mobile.includes(q) || c.receiptNumber.toLowerCase().includes(q)
@@ -187,9 +209,12 @@ export default function ContributionsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900">Contributions</h1>
-          <p className="text-gray-500 text-sm">{contributions.length} total • {filtered.length} shown</p>
+          <p className="text-gray-500 text-sm">
+            {contributions.length} total • {filtered.length} shown
+            {filterCollector === 'mine' && <span className="font-bold text-saffron-700"> (Showing My Collections)</span>}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             icon={<Download size={15} />}
@@ -208,20 +233,105 @@ export default function ContributionsPage() {
         </div>
       </div>
 
+      {/* Scope Selector: All Committee vs My Personal Collection */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-2 rounded-2xl shadow-card border border-gray-100">
+        <button
+          type="button"
+          onClick={() => setFilterCollector('all')}
+          className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+            filterCollector === 'all'
+              ? 'bg-saffron-50/80 border-saffron-300 ring-2 ring-saffron-400/30'
+              : 'bg-gray-50/50 border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">All Committee Collections</p>
+            <p className="text-xl font-black text-gray-900 mt-0.5">{formatCurrency(totalCollectedAll)}</p>
+          </div>
+          <span className="text-xs font-bold bg-white text-gray-700 px-2.5 py-1 rounded-full border border-gray-200 shadow-xs">
+            {contributions.length} Total
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setFilterCollector('mine')}
+          className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+            filterCollector === 'mine'
+              ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 ring-2 ring-amber-400/40'
+              : 'bg-gray-50/50 border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          <div>
+            <p className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+              👤 My Personal Collection ({user?.name || 'Admin'})
+            </p>
+            <p className="text-xl font-black text-amber-950 mt-0.5">{formatCurrency(myTotalPaid)}</p>
+          </div>
+          <span className="text-xs font-bold bg-amber-200/80 text-amber-900 px-2.5 py-1 rounded-full border border-amber-300 shadow-xs">
+            {myContributions.length} Records
+          </span>
+        </button>
+      </div>
+
+      {/* Payment Method Breakdown Badges with 1-Click Filter */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+            Calculated by Payment Method {filterCollector === 'mine' ? '(My Collections)' : '(All Collections)'}:
+          </p>
+          {filterMethod && (
+            <button
+              onClick={() => setFilterMethod('')}
+              className="text-xs text-saffron-700 font-bold hover:underline"
+            >
+              Reset Method Filter
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {[
+            { method: 'UPI', label: '📱 UPI', amount: methodStats.UPI, color: 'border-purple-200 bg-purple-50/70 text-purple-900' },
+            { method: 'Cash', label: '💵 Cash', amount: methodStats.Cash, color: 'border-green-200 bg-green-50/70 text-green-900' },
+            { method: 'Online', label: '🌐 Online', amount: methodStats.Online, color: 'border-blue-200 bg-blue-50/70 text-blue-900' },
+            { method: 'Cheque', label: '🏦 Cheque', amount: methodStats.Cheque, color: 'border-amber-200 bg-amber-50/70 text-amber-900' },
+          ].map(m => {
+            const isSelected = filterMethod === m.method
+            return (
+              <button
+                key={m.method}
+                type="button"
+                onClick={() => setFilterMethod(isSelected ? '' : m.method)}
+                className={`p-3 rounded-2xl border text-left transition-all ${m.color} ${
+                  isSelected ? 'ring-2 ring-saffron-500 scale-[1.02] shadow-md' : 'hover:shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span>{m.label}</span>
+                  {isSelected && <span className="text-[10px] bg-saffron-600 text-white px-1.5 py-0.5 rounded-full font-black">Filtered</span>}
+                </div>
+                <p className="text-base sm:text-lg font-black mt-1">{formatCurrency(m.amount)}</p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {['Paid','Pending','Partial'].map(s => (
           <div key={s} className="bg-white rounded-xl shadow-card p-4 text-center">
             <p className="text-xl font-bold text-gray-900">
-              {formatCurrency(contributions.filter(c => c.paymentStatus === s).reduce((sum,c)=>sum+c.amount,0))}
+              {formatCurrency(baseList.filter(c => c.paymentStatus === s).reduce((sum,c)=>sum+c.amount,0))}
             </p>
             <p className="text-sm text-gray-500">{s}</p>
           </div>
         ))}
         <div className="bg-saffron-50 rounded-xl shadow-card p-4 text-center">
           <p className="text-xl font-bold text-saffron-700">
-            {formatCurrency(contributions.filter(c=>c.paymentStatus==='Paid').reduce((s,c)=>s+c.amount,0))}
+            {formatCurrency(baseList.filter(c=>c.paymentStatus==='Paid').reduce((s,c)=>s+c.amount,0))}
           </p>
-          <p className="text-sm text-saffron-600">Total Collected</p>
+          <p className="text-sm text-saffron-600">{filterCollector === 'mine' ? 'My Collected' : 'Total Collected'}</p>
         </div>
       </div>
 
@@ -248,7 +358,7 @@ export default function ContributionsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {['Receipt','Name','Mobile','Amount','Method','Status','Department','Date','Actions']
+                {['Receipt','Name','Mobile','Amount','Method','Status','Department','Collector','Date','Actions']
                   .map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}
               </tr>
             </thead>
@@ -262,10 +372,11 @@ export default function ContributionsPage() {
                   <td className="px-4 py-3 text-gray-600">{c.paymentMethod}</td>
                   <td className="px-4 py-3"><Badge variant={statusVariant[c.paymentStatus]} dot>{c.paymentStatus}</Badge></td>
                   <td className="px-4 py-3 text-gray-600">{c.departmentName}</td>
+                  <td className="px-4 py-3 text-xs text-gray-700 font-medium">{c.collectedBy}</td>
                   <td className="px-4 py-3 text-gray-500">{formatDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
-                      <button onClick={() => { setReceiptContrib(c); setReceiptOpen(true) }}
+                      <button onClick={() => { setSingleReceiptContrib(c); setSingleReceiptOpen(true) }}
                         className="p-1.5 rounded-lg text-saffron-600 hover:bg-saffron-50" title="Receipt">
                         <Receipt size={14} />
                       </button>

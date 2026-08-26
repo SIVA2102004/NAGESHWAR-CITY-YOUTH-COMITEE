@@ -39,9 +39,24 @@ export default function MyContributionsPage() {
     return subscribeToVolunteerContributions(festival.id, user.uid, setContributions)
   }, [festival, user])
 
+  const [filterMethod, setFilterMethod] = useState('')
+
+  const myTotalPaid = contributions
+    .filter(c => c.paymentStatus === 'Paid')
+    .reduce((s, c) => s + c.amount, 0)
+
+  const methodStats = {
+    UPI: contributions.filter(c => c.paymentMethod === 'UPI' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+    Cash: contributions.filter(c => c.paymentMethod === 'Cash' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+    Online: contributions.filter(c => c.paymentMethod === 'Online' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+    Cheque: contributions.filter(c => c.paymentMethod === 'Cheque' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+  }
+
   const filtered = contributions.filter(c => {
     const q = search.toLowerCase()
-    return !q || c.contributorName.toLowerCase().includes(q) || c.mobile.includes(q) || c.receiptNumber.toLowerCase().includes(q)
+    const matchSearch = !q || c.contributorName.toLowerCase().includes(q) || c.mobile.includes(q) || c.receiptNumber.toLowerCase().includes(q)
+    const matchMethod = !filterMethod || c.paymentMethod === filterMethod
+    return matchSearch && matchMethod
   })
 
   const handleAddSuccess = (
@@ -66,11 +81,57 @@ export default function MyContributionsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900">My Collections</h1>
-          <p className="text-gray-500 text-sm">Contributions collected by you</p>
+          <p className="text-gray-500 text-sm">
+            Total Collected by You: <strong className="text-saffron-700 font-black">{formatCurrency(myTotalPaid)}</strong> ({contributions.length} contributors)
+          </p>
         </div>
         <Button icon={<Plus size={16} />} onClick={() => setAddModalOpen(true)}>
           Record Collection (Single / Room)
         </Button>
+      </div>
+
+      {/* Payment Method Breakdown Tiles with 1-Click Filter */}
+      <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+            Calculated by Payment Method:
+          </p>
+          {filterMethod && (
+            <button
+              onClick={() => setFilterMethod('')}
+              className="text-xs text-saffron-700 font-bold hover:underline"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {[
+            { method: 'UPI', label: '📱 UPI', amount: methodStats.UPI, color: 'border-purple-200 bg-purple-50/70 text-purple-900' },
+            { method: 'Cash', label: '💵 Cash', amount: methodStats.Cash, color: 'border-green-200 bg-green-50/70 text-green-900' },
+            { method: 'Online', label: '🌐 Online', amount: methodStats.Online, color: 'border-blue-200 bg-blue-50/70 text-blue-900' },
+            { method: 'Cheque', label: '🏦 Cheque', amount: methodStats.Cheque, color: 'border-amber-200 bg-amber-50/70 text-amber-900' },
+          ].map(m => {
+            const isSelected = filterMethod === m.method
+            return (
+              <button
+                key={m.method}
+                type="button"
+                onClick={() => setFilterMethod(isSelected ? '' : m.method)}
+                className={`p-3 rounded-xl border text-left transition-all ${m.color} ${
+                  isSelected ? 'ring-2 ring-saffron-500 scale-[1.02] shadow-md' : 'hover:shadow-xs'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span>{m.label}</span>
+                  {isSelected && <span className="text-[10px] bg-saffron-600 text-white px-1.5 py-0.5 rounded-full font-black">Active</span>}
+                </div>
+                <p className="text-base sm:text-lg font-black mt-1">{formatCurrency(m.amount)}</p>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <SearchFilter value={search} onChange={setSearch} placeholder="Search by name, mobile, receipt..." />
@@ -78,8 +139,8 @@ export default function MyContributionsPage() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={<IndianRupee size={32} />}
-          title="No collections yet"
-          message="Start recording chanda contributions from devotees or room groups."
+          title="No collections found"
+          message={filterMethod ? `No contributions found for ${filterMethod}.` : "Start recording chanda contributions from devotees or room groups."}
           action={{ label: 'Record Collection', onClick: () => setAddModalOpen(true) }}
         />
       ) : (

@@ -80,6 +80,13 @@ export default function AdminDashboard() {
     return () => { unsub1(); unsub2(); unsub3(); unsub4() }
   }, [festival])
 
+  const myAdminContributions = contributions.filter(
+    c => c.collectedByUid === user?.uid || (user?.name && c.collectedBy.toLowerCase() === user.name.toLowerCase())
+  )
+  const myAdminTotal = myAdminContributions
+    .filter(c => c.paymentStatus === 'Paid')
+    .reduce((s, c) => s + c.amount, 0)
+
   const totalCollection = contributions.filter(c => c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
   const balance = totalCollection - totalExpenses
@@ -161,13 +168,52 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* Top Main Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3.5">
         <StatCard title="Total Collection" value={formatCurrency(totalCollection)} icon={<IndianRupee size={20} />} color="orange" />
+        <StatCard title="My Collection" value={formatCurrency(myAdminTotal)} icon={<IndianRupee size={20} />} color="amber" subtitle={`${myAdminContributions.length} personal`} />
         <StatCard title="Total Expenses" value={formatCurrency(totalExpenses)} icon={<CreditCard size={20} />} color="red" />
         <StatCard title="Balance" value={formatCurrency(balance)} icon={<TrendingUp size={20} />} color={balance >= 0 ? 'green' : 'red'} />
         <StatCard title="Coordinators" value={volunteerCount} icon={<UserCheck size={20} />} color="blue" />
         <StatCard title="Volunteers" value={memberCount} icon={<Users size={20} />} color="purple" />
         <StatCard title="Departments" value={deptCount} icon={<Building2 size={20} />} color="teal" />
+      </div>
+
+      {/* Payment Method Breakdown Real-Time Cards */}
+      <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+            <CreditCard size={15} className="text-saffron-600" />
+            Collection Calculated by Payment Method
+          </h3>
+          <span className="text-xs font-bold text-gray-500">
+            Total: {formatCurrency(totalCollection)}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { name: 'UPI', label: '📱 UPI', color: 'bg-purple-50 border-purple-200 text-purple-900', barColor: 'bg-purple-500' },
+            { name: 'Cash', label: '💵 Cash', color: 'bg-green-50 border-green-200 text-green-900', barColor: 'bg-green-500' },
+            { name: 'Online', label: '🌐 Online', color: 'bg-blue-50 border-blue-200 text-blue-900', barColor: 'bg-blue-500' },
+            { name: 'Cheque', label: '🏦 Cheque', color: 'bg-amber-50 border-amber-200 text-amber-900', barColor: 'bg-amber-500' },
+          ].map(m => {
+            const val = contributions.filter(c => c.paymentMethod === m.name && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0)
+            const count = contributions.filter(c => c.paymentMethod === m.name && c.paymentStatus === 'Paid').length
+            const pct = totalCollection > 0 ? (val / totalCollection) * 100 : 0
+            return (
+              <div key={m.name} className={`p-3.5 rounded-xl border ${m.color} space-y-1.5`}>
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span>{m.label}</span>
+                  <span className="text-[11px] font-semibold opacity-75">{count} txns ({pct.toFixed(0)}%)</span>
+                </div>
+                <p className="text-xl font-black">{formatCurrency(val)}</p>
+                <div className="w-full bg-black/10 rounded-full h-1.5 overflow-hidden">
+                  <div className={`h-full ${m.barColor} rounded-full`} style={{ width: `${pct}%` }}></div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

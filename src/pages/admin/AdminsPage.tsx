@@ -14,8 +14,9 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import EmptyState from '../../components/ui/EmptyState'
 import SearchFilter from '../../components/ui/SearchFilter'
 import InviteCodeCard from '../../components/shared/InviteCodeCard'
-import { formatDate } from '../../utils/formatters'
-import type { AppUser, UserStatus, InviteCode } from '../../types'
+import { getContributionsByFestival } from '../../services/contributionService'
+import { formatCurrency, formatDate } from '../../utils/formatters'
+import type { AppUser, UserStatus, InviteCode, Contribution } from '../../types'
 
 const statusVariant: Record<UserStatus, 'success' | 'warning' | 'danger'> = {
   active: 'success',
@@ -28,6 +29,7 @@ export default function AdminsPage() {
   const { festival } = useFestival()
 
   const [admins, setAdmins] = useState<AppUser[]>([])
+  const [contributions, setContributions] = useState<Contribution[]>([])
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [loading, setLoading] = useState(true)
@@ -49,12 +51,14 @@ export default function AdminsPage() {
     if (!festival) return
     setLoading(true)
     try {
-      const [admList, allCodes] = await Promise.all([
+      const [admList, allCodes, allContribs] = await Promise.all([
         getUsersByRole(festival.id, 'admin'),
         getInviteCodesByFestival(festival.id),
+        getContributionsByFestival(festival.id),
       ])
       setAdmins(admList)
       setAdminCodes(allCodes.filter(c => c.type === 'ADMIN_INVITE'))
+      setContributions(allContribs)
     } finally {
       setLoading(false)
     }
@@ -227,7 +231,7 @@ export default function AdminsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {['Administrator', 'Email Address', 'Mobile Number', 'Role Badge', 'Status', 'Joined Date', 'Actions'].map(h => (
+                {['Administrator', 'Personal Collection', 'Email Address', 'Mobile Number', 'Status', 'Joined Date', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     {h}
                   </th>
@@ -235,89 +239,103 @@ export default function AdminsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(a => (
-                <tr key={a.uid} className="border-b border-gray-50 hover:bg-gray-50/70 transition-colors">
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-saffron-500 to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                        {a.name.charAt(0).toUpperCase()}
+              {filtered.map(a => {
+                const adminContribs = contributions.filter(
+                  c => c.collectedByUid === a.uid || (c.collectedBy && c.collectedBy.toLowerCase() === a.name.toLowerCase())
+                )
+                const collectedTotal = adminContribs
+                  .filter(c => c.paymentStatus === 'Paid')
+                  .reduce((s, c) => s + c.amount, 0)
+
+                return (
+                  <tr key={a.uid} className="border-b border-gray-50 hover:bg-gray-50/70 transition-colors">
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-saffron-500 to-amber-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                          {a.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 flex items-center gap-1.5">
+                            {a.name}
+                            {a.uid === user?.uid && (
+                              <span className="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                                YOU
+                              </span>
+                            )}
+                          </p>
+                          {a.address && <p className="text-xs text-gray-400">{a.address}</p>}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-gray-900 flex items-center gap-1.5">
-                          {a.name}
-                          {a.uid === user?.uid && (
-                            <span className="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                              YOU
-                            </span>
-                          )}
-                        </p>
-                        {a.address && <p className="text-xs text-gray-400">{a.address}</p>}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="inline-flex flex-col">
+                        <span className="font-black text-amber-950 text-sm">
+                          {formatCurrency(collectedTotal)}
+                        </span>
+                        <span className="text-[11px] font-semibold text-gray-500">
+                          {adminContribs.length} donations
+                        </span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-gray-600 font-medium">
-                    <div className="flex items-center gap-1.5">
-                      <Mail size={14} className="text-gray-400 flex-shrink-0" />
-                      <span>{a.email}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-gray-600">
-                    {a.mobile ? (
-                      <span className="flex items-center gap-1.5">
-                        <Phone size={14} className="text-gray-400 flex-shrink-0" /> {a.mobile}
-                      </span>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Badge variant="saffron" dot>
-                      Administrator
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Badge variant={statusVariant[a.status]} dot>
-                      {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3.5 text-gray-500 text-xs">
-                    {formatDate(a.createdAt)}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setEditAdmin(a)}
-                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
-                        title="Edit Details"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      {a.uid !== user?.uid && (
-                        <>
-                          <button
-                            onClick={() => handleToggleStatus(a)}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              a.status === 'active'
-                                ? 'text-red-500 hover:bg-red-50'
-                                : 'text-green-600 hover:bg-green-50'
-                            }`}
-                            title={a.status === 'active' ? 'Block Admin' : 'Activate Admin'}
-                          >
-                            {a.status === 'active' ? <Ban size={14} /> : <CheckCircle size={14} />}
-                          </button>
-                          <button
-                            onClick={() => setDelAdmin(a)}
-                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                            title="Remove Admin"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </>
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-600 font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                        <span>{a.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-600">
+                      {a.mobile ? (
+                        <span className="flex items-center gap-1.5">
+                          <Phone size={14} className="text-gray-400 flex-shrink-0" /> {a.mobile}
+                        </span>
+                      ) : (
+                        '—'
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Badge variant={statusVariant[a.status]} dot>
+                        {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-500 text-xs">
+                      {formatDate(a.createdAt)}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditAdmin(a)}
+                          className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="Edit Details"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        {a.uid !== user?.uid && (
+                          <>
+                            <button
+                              onClick={() => handleToggleStatus(a)}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                a.status === 'active'
+                                  ? 'text-red-500 hover:bg-red-50'
+                                  : 'text-green-600 hover:bg-green-50'
+                              }`}
+                              title={a.status === 'active' ? 'Block Admin' : 'Activate Admin'}
+                            >
+                              {a.status === 'active' ? <Ban size={14} /> : <CheckCircle size={14} />}
+                            </button>
+                            <button
+                              onClick={() => setDelAdmin(a)}
+                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                              title="Remove Admin"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

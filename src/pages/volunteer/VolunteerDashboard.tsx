@@ -90,6 +90,42 @@ export default function VolunteerDashboard() {
         <StatCard title="Pending Chanda" value={pendingCount} icon={<Clock size={20} />} color="red" />
       </div>
 
+      {/* Payment Method Breakdown for Coordinator */}
+      <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black text-gray-700 uppercase tracking-wider">
+            My Collection Calculated by Payment Method
+          </h3>
+          <span className="text-xs font-bold text-gray-500">
+            Total: {formatCurrency(myTotal)}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { name: 'UPI', label: '📱 UPI', color: 'bg-purple-50 border-purple-200 text-purple-900', barColor: 'bg-purple-500' },
+            { name: 'Cash', label: '💵 Cash', color: 'bg-green-50 border-green-200 text-green-900', barColor: 'bg-green-500' },
+            { name: 'Online', label: '🌐 Online', color: 'bg-blue-50 border-blue-200 text-blue-900', barColor: 'bg-blue-500' },
+            { name: 'Cheque', label: '🏦 Cheque', color: 'bg-amber-50 border-amber-200 text-amber-900', barColor: 'bg-amber-500' },
+          ].map(m => {
+            const val = contributions.filter(c => c.paymentMethod === m.name && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0)
+            const count = contributions.filter(c => c.paymentMethod === m.name && c.paymentStatus === 'Paid').length
+            const pct = myTotal > 0 ? (val / myTotal) * 100 : 0
+            return (
+              <div key={m.name} className={`p-3 rounded-xl border ${m.color} space-y-1`}>
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span>{m.label}</span>
+                  <span className="text-[11px] opacity-75">{count} txns</span>
+                </div>
+                <p className="text-base sm:text-lg font-black">{formatCurrency(val)}</p>
+                <div className="w-full bg-black/10 rounded-full h-1 overflow-hidden">
+                  <div className={`h-full ${m.barColor} rounded-full`} style={{ width: `${pct}%` }}></div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <div className="flex items-center justify-between mb-4">
