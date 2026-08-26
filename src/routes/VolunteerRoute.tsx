@@ -8,8 +8,7 @@ export default function VolunteerRoute() {
 
   if (loading) return <LoadingSpinner fullScreen label="Loading..." />
   if (!user)   return <Navigate to="/login" replace />
-  if (user.role === 'admin') return <Navigate to="/admin" replace />
-  if (user.role !== 'volunteer') return <Navigate to="/member" replace />
+  if (user.role !== 'admin' && user.role !== 'volunteer') return <Navigate to="/member" replace />
 
   return <Outlet />
 }

@@ -8,8 +8,6 @@ export default function MemberRoute() {
 
   if (loading) return <LoadingSpinner fullScreen label="Loading..." />
   if (!user)   return <Navigate to="/login" replace />
-  if (user.role === 'admin')     return <Navigate to="/admin" replace />
-  if (user.role === 'volunteer') return <Navigate to="/volunteer" replace />
 
   return <Outlet />
 }
