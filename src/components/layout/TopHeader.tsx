@@ -65,9 +65,9 @@ export default function TopHeader() {
                 title="Switch Committee / Pandal (President Access)"
               >
                 <img
-                  src="/logo.jpg"
+                  src={festival?.logo || '/logo.jpg'}
                   alt="Logo"
-                  className="w-8 h-8 rounded-full object-cover shadow-xs border border-amber-400 flex-shrink-0"
+                  className="w-8 h-8 rounded-full object-cover shadow-xs border border-amber-400 flex-shrink-0 bg-white"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1">
@@ -84,9 +84,9 @@ export default function TopHeader() {
             ) : (
               <div className="flex items-center gap-2.5 px-1 py-1">
                 <img
-                  src="/logo.jpg"
+                  src={festival?.logo || '/logo.jpg'}
                   alt="Logo"
-                  className="w-8 h-8 rounded-full object-cover shadow-xs border border-amber-400"
+                  className="w-8 h-8 rounded-full object-cover shadow-xs border border-amber-400 bg-white"
                 />
                 <div>
                   <h2 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">

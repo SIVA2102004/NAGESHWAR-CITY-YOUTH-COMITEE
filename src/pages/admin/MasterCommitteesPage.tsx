@@ -49,6 +49,9 @@ export default function MasterCommitteesPage() {
   // Create Modal
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
+  const [newLogo, setNewLogo] = useState<string>('/logo.jpg')
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   const [newForm, setNewForm] = useState({
     name: '',
     committeeName: '',
@@ -59,6 +62,49 @@ export default function MasterCommitteesPage() {
     address: '',
     contactNumber: '',
   })
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo image must be less than 5MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 300
+        let w = img.width
+        let h = img.height
+        if (w > h) {
+          if (w > maxDim) {
+            h = Math.round((h * maxDim) / w)
+            w = maxDim
+          }
+        } else {
+          if (h > maxDim) {
+            w = Math.round((w * maxDim) / h)
+            h = maxDim
+          }
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h)
+          const compressed = canvas.toDataURL('image/jpeg', 0.85)
+          setNewLogo(compressed)
+          toast.success('Pandal logo uploaded! 🖼️')
+        }
+      }
+      img.src = event.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
 
   // Delete Modal
   const [deleteTarget, setDeleteTarget] = useState<Festival | null>(null)
@@ -135,6 +181,7 @@ export default function MasterCommitteesPage() {
         committeeName: newForm.committeeName.trim(),
         festivalYear: newForm.festivalYear || '2026',
         targetAmount: parseFloat(newForm.targetAmount) || 0,
+        logo: newLogo !== '/logo.jpg' ? newLogo : undefined,
         upiId: newForm.upiId.trim() || undefined,
         upiPayeeName: newForm.upiPayeeName.trim() || newForm.committeeName.trim(),
         address: newForm.address.trim() || undefined,
@@ -144,6 +191,7 @@ export default function MasterCommitteesPage() {
 
       toast.success(`🎉 ${newForm.committeeName} created and activated!`)
       setCreateModalOpen(false)
+      setNewLogo('/logo.jpg')
       setNewForm({
         name: '',
         committeeName: '',
@@ -296,9 +344,17 @@ export default function MasterCommitteesPage() {
                   <div className="space-y-4">
                     {/* Committee Header */}
                     <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 text-saffron-800 flex items-center justify-center font-black text-lg shadow-sm flex-shrink-0">
-                        {fest.committeeName.charAt(0).toUpperCase()}
-                      </div>
+                      {fest.logo ? (
+                        <img
+                          src={fest.logo}
+                          alt={fest.committeeName}
+                          className="w-12 h-12 rounded-2xl object-cover border border-amber-300 shadow-sm flex-shrink-0 bg-white"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 text-saffron-800 flex items-center justify-center font-black text-lg shadow-sm flex-shrink-0">
+                          {fest.committeeName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <div className="min-w-0 pr-6">
                         <h3 className="font-extrabold text-gray-900 text-base leading-tight truncate">
                           {fest.committeeName}
@@ -414,6 +470,55 @@ export default function MasterCommitteesPage() {
         }
       >
         <form onSubmit={handleCreateCommittee} className="space-y-4">
+          {/* Logo Upload Box */}
+          <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4">
+            <label className="text-xs font-bold text-amber-900 uppercase tracking-wider block mb-2">
+              Pandal Logo / Banner (Optional)
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <img
+                  src={newLogo}
+                  alt="Pandal Logo"
+                  className="w-16 h-16 rounded-xl object-cover border-2 border-amber-400 bg-white shadow-xs"
+                />
+                {newLogo !== '/logo.jpg' && (
+                  <button
+                    type="button"
+                    onClick={() => setNewLogo('/logo.jpg')}
+                    className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 shadow-sm hover:bg-red-700"
+                    title="Reset to default"
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleLogoUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={<Upload size={13} />}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-white text-xs"
+                >
+                  Upload Logo Image
+                </Button>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Square image (PNG/JPG, max 5MB)
+                </p>
+              </div>
+            </div>
+          </div>
+
           <Input
             label="Committee / Pandal Name *"
             value={newForm.committeeName}

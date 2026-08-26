@@ -70,9 +70,9 @@ export default function Sidebar() {
       <div className="px-5 py-5 border-b border-saffron-100">
         <div className="flex items-center gap-3">
           <img
-            src="/logo.jpg"
+            src={festival?.logo || '/logo.jpg'}
             alt="Logo"
-            className="w-11 h-11 rounded-xl object-cover shadow-sm ring-1 ring-saffron-300"
+            className="w-11 h-11 rounded-xl object-cover shadow-sm ring-1 ring-saffron-300 bg-white"
           />
           <div className="min-w-0">
             <h1 className="font-bold text-gray-900 text-sm leading-tight truncate">

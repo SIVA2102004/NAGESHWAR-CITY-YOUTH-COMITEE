@@ -118,16 +118,16 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
       >
         {/* Subtle Watermark */}
         <div className="absolute -right-10 -bottom-10 opacity-5 pointer-events-none select-none">
-          <img src="/logo.jpg" alt="" className="w-64 h-64 rounded-full object-cover" />
+          <img src={festival?.logo || '/logo.jpg'} alt="" className="w-64 h-64 rounded-full object-cover" />
         </div>
 
         {/* Header with Golden Logo */}
         <div className="text-center border-b-2 border-dashed border-amber-300 pb-4 mb-4">
           <div className="flex justify-center mb-2.5">
             <img
-              src="/logo.jpg"
+              src={festival?.logo || '/logo.jpg'}
               alt="Committee Logo"
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-md ring-4 ring-amber-400/60 border border-amber-500"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-md ring-4 ring-amber-400/60 border border-amber-500 bg-white"
             />
           </div>
           <p className="text-xs font-bold text-amber-800 tracking-wider uppercase mb-0.5">

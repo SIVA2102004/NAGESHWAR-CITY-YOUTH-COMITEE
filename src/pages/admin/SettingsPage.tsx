@@ -15,6 +15,9 @@ export default function SettingsPage() {
   const { user, refreshUser } = useAuth()
   const { festival, updateSettings } = useFestival()
 
+  const [logo, setLogo] = useState<string>(festival?.logo || '/logo.jpg')
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
   const [festForm, setFestForm] = useState({
     name: festival?.name || '',
     committeeName: festival?.committeeName || '',
@@ -29,6 +32,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (festival) {
+      setLogo(festival.logo || '/logo.jpg')
       setFestForm({
         name: festival.name || '',
         committeeName: festival.committeeName || '',
@@ -42,6 +46,49 @@ export default function SettingsPage() {
       })
     }
   }, [festival])
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo image must be less than 5MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 300
+        let w = img.width
+        let h = img.height
+        if (w > h) {
+          if (w > maxDim) {
+            h = Math.round((h * maxDim) / w)
+            w = maxDim
+          }
+        } else {
+          if (h > maxDim) {
+            w = Math.round((w * maxDim) / h)
+            h = maxDim
+          }
+        }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h)
+          const compressed = canvas.toDataURL('image/jpeg', 0.85)
+          setLogo(compressed)
+          toast.success('Logo uploaded! Click Save to apply. 🖼️')
+        }
+      }
+      img.src = event.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
 
   const [userForm, setUserForm] = useState({
     name: user?.name || '',
@@ -64,10 +111,11 @@ export default function SettingsPage() {
         contactNumber: festForm.contactNumber,
         email: festForm.email,
         targetAmount: parseFloat(festForm.targetAmount) || 0,
+        logo: logo !== '/logo.jpg' ? logo : undefined,
         upiId: festForm.upiId.trim(),
         upiPayeeName: festForm.upiPayeeName.trim(),
       })
-      toast.success('Festival and UPI settings updated successfully!')
+      toast.success('Festival, Logo, and UPI settings updated successfully!')
     } catch { toast.error('Update failed') } finally { setFestSaving(false) }
   }
 
@@ -157,6 +205,54 @@ export default function SettingsPage() {
           <Building2 size={20} className="text-saffron-600" /> Festival Settings
         </h2>
         <form onSubmit={handleFestSave} className="space-y-4">
+          {/* Logo Management Box */}
+          <div className="bg-gradient-to-r from-saffron-50 to-amber-50 border border-saffron-200 rounded-2xl p-4">
+            <label className="text-xs font-bold text-saffron-900 uppercase tracking-wider block mb-2">
+              Official Committee Logo
+            </label>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="relative group">
+                <img
+                  src={logo}
+                  alt="Committee Logo"
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-400 shadow-md bg-white"
+                />
+                {logo !== '/logo.jpg' && (
+                  <button
+                    type="button"
+                    onClick={() => setLogo('/logo.jpg')}
+                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700"
+                    title="Reset to default logo"
+                  >
+                    <span className="text-[10px] font-bold px-1">✕</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleLogoUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-white"
+                >
+                  Upload New Logo
+                </Button>
+                <p className="text-[11px] text-gray-500">
+                  PNG or JPG (Max 5MB). Automatically synchronized with devotee receipts and UPI screens.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Committee Name" value={festForm.committeeName}
               onChange={e => setFestForm(f=>({...f,committeeName:e.target.value}))} />

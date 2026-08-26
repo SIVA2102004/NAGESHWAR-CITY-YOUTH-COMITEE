@@ -27,6 +27,7 @@ interface FestivalContextValue {
     committeeName: string
     festivalYear:  string
     targetAmount:  number
+    logo?:         string
     upiId?:        string
     upiPayeeName?: string
     address?:      string

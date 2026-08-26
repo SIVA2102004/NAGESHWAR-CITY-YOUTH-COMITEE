@@ -44,6 +44,9 @@ export async function createFestival(data: {
   contactNumber?: string
   email?:        string
   targetAmount:  number
+  logo?:         string
+  upiId?:        string
+  upiPayeeName?: string
   createdBy:     string
 }): Promise<string> {
   const ref = await addDoc(collection(db, COLLECTION), {
