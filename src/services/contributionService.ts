@@ -22,25 +22,25 @@ import { generateReceiptNumber } from '../utils/receiptNumber'
 const COLLECTION = 'contributions'
 
 function docToContribution(d: any): Contribution {
-  const data = d.data()
+  const data = d.data() || {}
   return {
     id:              d.id,
-    festivalId:      data.festivalId as string,
-    contributorName: data.contributorName as string,
-    mobile:          data.mobile as string,
+    festivalId:      (data.festivalId as string) || '',
+    contributorName: (data.contributorName as string) || 'Devotee',
+    mobile:          (data.mobile as string) || '',
     houseNumber:     data.houseNumber as string | undefined,
-    amount:          (data.amount as number) || 0,
-    paymentMethod:   data.paymentMethod as PaymentMethod,
-    paymentStatus:   data.paymentStatus as PaymentStatus,
-    collectedBy:     data.collectedBy as string,
-    collectedByUid:  data.collectedByUid as string,
-    departmentId:    data.departmentId as string,
-    departmentName:  data.departmentName as string,
+    amount:          Number(data.amount) || 0,
+    paymentMethod:   (data.paymentMethod as PaymentMethod) || 'Cash',
+    paymentStatus:   (data.paymentStatus as PaymentStatus) || 'Paid',
+    collectedBy:     (data.collectedBy as string) || 'Committee',
+    collectedByUid:  (data.collectedByUid as string) || '',
+    departmentId:    (data.departmentId as string) || '',
+    departmentName:  (data.departmentName as string) || 'General',
     notes:           data.notes as string | undefined,
-    receiptNumber:   data.receiptNumber as string,
+    receiptNumber:   (data.receiptNumber as string) || `GC-${d.id.slice(0, 6)}`,
     createdAt:       toDate(data.createdAt),
     updatedAt:       toDate(data.updatedAt),
-    createdBy:       data.createdBy as string,
+    createdBy:       (data.createdBy as string) || '',
   }
 }
 

@@ -42,6 +42,7 @@ import MemberProfilePage from './pages/member/MemberProfilePage'
 
 import LoadingSpinner from './components/ui/LoadingSpinner'
 import PwaInstallPrompt from './components/shared/PwaInstallPrompt'
+import ErrorBoundary from './components/shared/ErrorBoundary'
 
 function HomeRedirect() {
   const { user, loading } = useAuth()
@@ -54,12 +55,13 @@ function HomeRedirect() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <FestivalProvider>
-          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-          <PwaInstallPrompt />
-          <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <FestivalProvider>
+            <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+            <PwaInstallPrompt />
+            <Routes>
             {/* Public */}
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/login" element={<LoginPage />} />
@@ -110,5 +112,6 @@ export default function App() {
         </FestivalProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }

@@ -81,7 +81,7 @@ export default function AdminDashboard() {
   }, [festival])
 
   const myAdminContributions = contributions.filter(
-    c => c.collectedByUid === user?.uid || (user?.name && c.collectedBy.toLowerCase() === user.name.toLowerCase())
+    c => c.collectedByUid === user?.uid || (user?.name && (c.collectedBy || '').toLowerCase() === user.name.toLowerCase())
   )
   const myAdminTotal = myAdminContributions
     .filter(c => c.paymentStatus === 'Paid')

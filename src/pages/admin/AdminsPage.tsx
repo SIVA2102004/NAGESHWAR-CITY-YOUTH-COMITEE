@@ -241,7 +241,7 @@ export default function AdminsPage() {
             <tbody>
               {filtered.map(a => {
                 const adminContribs = contributions.filter(
-                  c => c.collectedByUid === a.uid || (c.collectedBy && c.collectedBy.toLowerCase() === a.name.toLowerCase())
+                  c => c.collectedByUid === a.uid || ((c.collectedBy || '').toLowerCase() === (a.name || '').toLowerCase())
                 )
                 const collectedTotal = adminContribs
                   .filter(c => c.paymentStatus === 'Paid')

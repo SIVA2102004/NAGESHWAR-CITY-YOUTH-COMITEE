@@ -87,7 +87,7 @@ export default function ContributionsPage() {
   const [filterCollectorName, setFilterCollectorName] = useState('')
 
   const myContributions = contributions.filter(
-    c => c.collectedByUid === user?.uid || (user?.name && c.collectedBy.toLowerCase() === user.name.toLowerCase())
+    c => c.collectedByUid === user?.uid || (user?.name && (c.collectedBy || '').toLowerCase() === user.name.toLowerCase())
   )
   const myTotalPaid = myContributions
     .filter(c => c.paymentStatus === 'Paid')
@@ -105,7 +105,7 @@ export default function ContributionsPage() {
   // Base list depending on scope and collector filter
   let baseList = filterCollector === 'mine' ? myContributions : contributions
   if (filterCollectorName) {
-    baseList = baseList.filter(c => c.collectedBy && c.collectedBy.toLowerCase() === filterCollectorName.toLowerCase())
+    baseList = baseList.filter(c => (c.collectedBy || '').toLowerCase() === filterCollectorName.toLowerCase())
   }
 
   // Payment Method Breakdown for current view
@@ -371,7 +371,7 @@ export default function ContributionsPage() {
         filters={[
           { key: 'collector', label: 'All Collectors', value: filterCollectorName, onChange: setFilterCollectorName,
             options: uniqueCollectors.map(name => {
-              const count = contributions.filter(c => c.collectedBy && c.collectedBy.toLowerCase() === name.toLowerCase()).length
+              const count = contributions.filter(c => (c.collectedBy || '').toLowerCase() === (name || '').toLowerCase()).length
               return { label: `👤 ${name} (${count})`, value: name }
             }) },
           { key: 'status', label: 'All Status', value: filterStatus, onChange: setFilterStatus,
