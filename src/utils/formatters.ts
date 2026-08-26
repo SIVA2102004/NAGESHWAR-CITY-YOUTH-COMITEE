@@ -1,14 +1,20 @@
 import { format, formatDistanceToNow } from 'date-fns'
 
 /**
- * Format a number as Indian Rupees
+ * Format a number as Indian Rupees without truncating decimals (e.g. 125.5 -> ₹125.50, 200 -> ₹200)
  */
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | string | undefined | null): string {
+  if (amount === undefined || amount === null || amount === '') return '₹0'
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (isNaN(num)) return '₹0'
+  
+  const isInteger = Number.isInteger(num)
   return new Intl.NumberFormat('en-IN', {
-    style:    'currency',
+    style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(amount)
+    minimumFractionDigits: isInteger ? 0 : 1,
+    maximumFractionDigits: 2,
+  }).format(num)
 }
 
 /**

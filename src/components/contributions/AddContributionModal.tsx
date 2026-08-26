@@ -74,6 +74,7 @@ export default function AddContributionModal({
   const [groupDepartmentName, setGroupDepartmentName] = useState('')
   const [groupNotes, setGroupNotes] = useState('')
   const [groupUpiUtr, setGroupUpiUtr] = useState('')
+  const [splitTotalInput, setSplitTotalInput] = useState('')
 
   const [members, setMembers] = useState<GroupMemberRow[]>([
     { id: '1', name: '', mobile: '', amount: '' },
@@ -81,6 +82,20 @@ export default function AddContributionModal({
     { id: '3', name: '', mobile: '', amount: '' },
     { id: '4', name: '', mobile: '', amount: '' },
   ])
+
+  const handleEqualSplit = (customTotal?: string) => {
+    const totalToUse = customTotal !== undefined ? customTotal : splitTotalInput
+    const total = parseFloat(totalToUse)
+    if (!total || total <= 0 || members.length === 0) {
+      toast.error('Please enter a valid total amount to divide')
+      return
+    }
+    const perPerson = total / members.length
+    // Preserve exact decimal without rounding (e.g. 251 / 2 = 125.5)
+    const perPersonStr = perPerson % 1 === 0 ? perPerson.toString() : parseFloat(perPerson.toFixed(2)).toString()
+    setMembers((prev) => prev.map((m) => ({ ...m, amount: perPersonStr })))
+    toast.success(`Divided ₹${total} into ₹${perPersonStr} per member! ⚡`)
+  }
 
   useEffect(() => {
     if (departments.length > 0) {
@@ -540,6 +555,31 @@ export default function AddContributionModal({
                 </button>
               </div>
 
+              {/* ⚡ Equal Split Tool */}
+              <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-2.5 flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-amber-950">⚡ Divide Total Amount:</span>
+                  <div className="relative w-28">
+                    <span className="absolute left-2.5 top-1.5 text-gray-400 text-xs">₹</span>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 251"
+                      value={splitTotalInput}
+                      onChange={(e) => setSplitTotalInput(e.target.value)}
+                      className="input-field text-xs py-1 pl-6 font-bold text-gray-900"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleEqualSplit()}
+                  className="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-xs transition-all"
+                >
+                  Divide Equally ({members.length} Members)
+                </button>
+              </div>
+
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {members.map((member, index) => (
                   <div
@@ -572,10 +612,11 @@ export default function AddContributionModal({
                       required
                     />
 
-                    <div className="relative w-24 flex-shrink-0">
+                    <div className="relative w-28 flex-shrink-0">
                       <span className="absolute left-2 top-2 text-gray-400 text-xs">₹</span>
                       <input
                         type="number"
+                        step="any"
                         placeholder="Amount"
                         value={member.amount}
                         onChange={(e) =>

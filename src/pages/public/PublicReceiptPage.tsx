@@ -11,6 +11,9 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import type { Contribution, Festival } from '../../types'
 
 function amountToWords(num: number): string {
+  const integerPart = Math.floor(num)
+  const decimalPart = Math.round((num - integerPart) * 100)
+
   const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
   const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
 
@@ -25,7 +28,11 @@ function amountToWords(num: number): string {
     return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '')
   }
 
-  return convert(Math.floor(num)) + ' Rupees Only'
+  let words = integerPart > 0 ? `${convert(integerPart)} Rupees` : ''
+  if (decimalPart > 0) {
+    words += (words ? ' and ' : '') + `${convert(decimalPart)} Paise`
+  }
+  return words ? `${words} Only` : 'Zero Rupees Only'
 }
 
 export default function PublicReceiptPage() {
