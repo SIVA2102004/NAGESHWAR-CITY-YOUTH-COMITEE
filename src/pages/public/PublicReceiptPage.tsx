@@ -267,37 +267,6 @@ ${shareUrl}
             <p className="font-bold mt-0.5 text-amber-900">🌸 Ganpati Bappa Morya! 🌸</p>
           </div>
         </div>
-
-        {/* Action Buttons for Devotees / Volunteers */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 no-print pt-2">
-          <Button
-            variant="outline"
-            icon={<Download size={16} />}
-            onClick={handleDownloadImage}
-            loading={downloading}
-            className="bg-white hover:bg-amber-50 text-amber-900 border-amber-300 font-bold"
-          >
-            Save as Image
-          </Button>
-
-          <Button
-            variant="secondary"
-            icon={<Printer size={16} />}
-            onClick={handlePrint}
-            className="font-bold"
-          >
-            Print / PDF
-          </Button>
-
-          <a
-            href={wLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366] text-white font-bold rounded-xl hover:bg-[#20bd5a] transition-all shadow-md text-sm"
-          >
-            <Share2 size={16} /> Share WhatsApp
-          </a>
-        </div>
       </div>
     </div>
   )
