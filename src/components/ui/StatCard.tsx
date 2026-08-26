@@ -4,13 +4,16 @@ interface Props {
   title:     string
   value:     string | number
   icon:      React.ReactNode
-  color?:    'orange' | 'green' | 'blue' | 'red' | 'purple' | 'teal'
+  color?:    'orange' | 'green' | 'blue' | 'red' | 'purple' | 'teal' | 'amber' | 'gold' | 'yellow'
   subtitle?: string
   trend?:    { value: number; label: string }
 }
 
-const colorMap = {
+const colorMap: Record<string, { bg: string; icon: string; text: string }> = {
   orange: { bg: 'bg-orange-50', icon: 'bg-orange-100 text-orange-600', text: 'text-orange-600' },
+  amber:  { bg: 'bg-amber-50',  icon: 'bg-amber-100 text-amber-700',   text: 'text-amber-700'  },
+  gold:   { bg: 'bg-yellow-50', icon: 'bg-yellow-100 text-yellow-700', text: 'text-yellow-700' },
+  yellow: { bg: 'bg-yellow-50', icon: 'bg-yellow-100 text-yellow-700', text: 'text-yellow-700' },
   green:  { bg: 'bg-green-50',  icon: 'bg-green-100 text-green-600',   text: 'text-green-600'  },
   blue:   { bg: 'bg-blue-50',   icon: 'bg-blue-100 text-blue-600',     text: 'text-blue-600'   },
   red:    { bg: 'bg-red-50',    icon: 'bg-red-100 text-red-600',       text: 'text-red-600'    },
@@ -19,7 +22,7 @@ const colorMap = {
 }
 
 export default function StatCard({ title, value, icon, color = 'orange', subtitle, trend }: Props) {
-  const c = colorMap[color]
+  const c = colorMap[color] || colorMap.orange
   return (
     <div className={`stat-card ${c.bg}`}>
       <div className="flex items-start justify-between">
