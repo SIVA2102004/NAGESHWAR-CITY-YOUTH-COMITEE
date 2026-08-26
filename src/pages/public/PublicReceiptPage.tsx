@@ -134,16 +134,10 @@ ${shareUrl}
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-gold-50 to-orange-50 py-8 px-4 flex flex-col items-center justify-center">
       <div className="w-full max-w-lg space-y-4">
-        {/* Navigation & Brand Header */}
-        <div className="flex items-center justify-between no-print px-2">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-xs transition-all"
-          >
-            <ArrowLeft size={14} /> Back to Portal
-          </Link>
-          <div className="flex items-center gap-1 text-[11px] font-extrabold text-green-700 bg-green-100/90 border border-green-300 px-2.5 py-1 rounded-full">
-            <ShieldCheck size={14} /> Digitally Verified Receipt
+        {/* Verified Badge Header */}
+        <div className="flex items-center justify-center no-print px-2">
+          <div className="flex items-center gap-1.5 text-xs font-extrabold text-green-800 bg-green-100/90 border border-green-300 px-3.5 py-1.5 rounded-full shadow-xs">
+            <ShieldCheck size={15} className="text-green-600" /> Official Digitally Verified Receipt
           </div>
         </div>
 
