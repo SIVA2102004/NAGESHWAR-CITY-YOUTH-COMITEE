@@ -84,6 +84,7 @@ export default function ContributionsPage() {
   }, [festival])
 
   const [filterCollector, setFilterCollector] = useState<'all' | 'mine'>('all')
+  const [filterCollectorName, setFilterCollectorName] = useState('')
 
   const myContributions = contributions.filter(
     c => c.collectedByUid === user?.uid || (user?.name && c.collectedBy.toLowerCase() === user.name.toLowerCase())
@@ -96,8 +97,18 @@ export default function ContributionsPage() {
     .filter(c => c.paymentStatus === 'Paid')
     .reduce((s, c) => s + c.amount, 0)
 
+  // Unique Collectors List
+  const uniqueCollectors = Array.from(
+    new Set(contributions.map(c => c.collectedBy).filter(Boolean))
+  ).sort()
+
+  // Base list depending on scope and collector filter
+  let baseList = filterCollector === 'mine' ? myContributions : contributions
+  if (filterCollectorName) {
+    baseList = baseList.filter(c => c.collectedBy && c.collectedBy.toLowerCase() === filterCollectorName.toLowerCase())
+  }
+
   // Payment Method Breakdown for current view
-  const baseList = filterCollector === 'mine' ? myContributions : contributions
   const methodStats = {
     UPI: baseList.filter(c => c.paymentMethod === 'UPI' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
     Cash: baseList.filter(c => c.paymentMethod === 'Cash' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
@@ -335,11 +346,34 @@ export default function ContributionsPage() {
         </div>
       </div>
 
+      {/* Active Collector Banner if selected */}
+      {filterCollectorName && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-amber-900">
+          <div className="flex items-center gap-2">
+            <span className="text-base">👤</span>
+            <span className="text-xs sm:text-sm font-bold">
+              Showing all transactions collected by: <strong className="text-saffron-800">{filterCollectorName}</strong> ({filtered.length} donations • {formatCurrency(baseList.filter(c => c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0))} collected)
+            </span>
+          </div>
+          <button
+            onClick={() => setFilterCollectorName('')}
+            className="text-xs font-bold bg-amber-200/80 hover:bg-amber-300 text-amber-950 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            Clear Collector Filter
+          </button>
+        </div>
+      )}
+
       <SearchFilter
         value={search}
         onChange={setSearch}
         placeholder="Search by name, mobile, receipt..."
         filters={[
+          { key: 'collector', label: 'All Collectors', value: filterCollectorName, onChange: setFilterCollectorName,
+            options: uniqueCollectors.map(name => {
+              const count = contributions.filter(c => c.collectedBy && c.collectedBy.toLowerCase() === name.toLowerCase()).length
+              return { label: `👤 ${name} (${count})`, value: name }
+            }) },
           { key: 'status', label: 'All Status', value: filterStatus, onChange: setFilterStatus,
             options: PAYMENT_STATUSES.map(s => ({ label: s, value: s })) },
           { key: 'method', label: 'All Methods', value: filterMethod, onChange: setFilterMethod,
@@ -372,7 +406,16 @@ export default function ContributionsPage() {
                   <td className="px-4 py-3 text-gray-600">{c.paymentMethod}</td>
                   <td className="px-4 py-3"><Badge variant={statusVariant[c.paymentStatus]} dot>{c.paymentStatus}</Badge></td>
                   <td className="px-4 py-3 text-gray-600">{c.departmentName}</td>
-                  <td className="px-4 py-3 text-xs text-gray-700 font-medium">{c.collectedBy}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setFilterCollectorName(c.collectedBy)}
+                      title={`Filter by ${c.collectedBy}`}
+                      className="text-xs text-saffron-700 hover:text-saffron-900 hover:underline font-bold text-left"
+                    >
+                      {c.collectedBy}
+                    </button>
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{formatDate(c.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
