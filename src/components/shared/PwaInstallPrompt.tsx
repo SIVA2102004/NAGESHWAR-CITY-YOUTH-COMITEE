@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Download, X, Smartphone, Share } from 'lucide-react'
 
 interface BeforeInstallPromptEvent extends Event {
@@ -7,11 +8,17 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PwaInstallPrompt() {
+  const location = useLocation()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isIos, setIsIos] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [showIosGuide, setShowIosGuide] = useState(false)
+
+  // Do not show install prompt on public devotee receipt pages
+  if (location.pathname.startsWith('/receipt')) {
+    return null
+  }
 
   useEffect(() => {
     // Check if already installed / running in standalone mode
