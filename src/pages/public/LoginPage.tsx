@@ -102,14 +102,25 @@ export default function LoginPage() {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!resetEmail) { toast.error('Enter your email'); return }
+    const clean = resetEmail.trim().toLowerCase()
+    if (!clean) {
+      toast.error('Please enter your email address')
+      return
+    }
     setSubmitting(true)
     try {
-      await resetPwd(resetEmail)
+      await resetPwd(clean)
       setResetSent(true)
-      toast.success('Password reset email sent!')
-    } catch {
-      toast.error('Could not send reset email. Check your email address.')
+      toast.success(`Password reset email sent to ${clean}!`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg.includes('user-not-found') || msg.includes('invalid-credential')) {
+        toast.error('No account registered with this email address.')
+      } else if (msg.includes('invalid-email')) {
+        toast.error('Please enter a valid email address.')
+      } else {
+        toast.error('Could not send reset email. Please verify the email address.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -308,15 +319,45 @@ export default function LoginPage() {
                   </button>
                 </form>
               ) : (
-                <div className="text-center mt-6">
-                  <div className="text-4xl mb-3">??</div>
-                  <p className="text-gray-700">Check your inbox for a password reset link.</p>
-                  <button
-                    onClick={() => { setResetMode(false); setResetSent(false) }}
-                    className="mt-4 text-saffron-600 font-semibold hover:underline text-sm"
-                  >
-                    Back to Login
-                  </button>
+                <div className="text-center mt-4 space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-100 text-saffron-700 flex items-center justify-center mx-auto text-2xl shadow-sm">
+                    ✉️
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-gray-900 text-base">Check Your Inbox</h3>
+                    <p className="text-xs text-gray-600 mt-1">
+                      We have sent a password reset link to:
+                    </p>
+                    <p className="text-xs font-bold text-saffron-800 bg-saffron-50 py-1 px-3 rounded-lg inline-block mt-1 font-mono border border-saffron-200">
+                      {resetEmail}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-left text-xs text-amber-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1">
+                      <span>⚠️ Important Note:</span>
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-amber-800">
+                      Firebase verification emails may arrive in your <strong>Spam / Junk</strong> folder or <strong>Updates / Promotions</strong> tab. Please check those folders and click "Report not spam".
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      onClick={() => { setResetMode(false); setResetSent(false) }}
+                    >
+                      Back to Login
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setResetSent(false)}
+                      className="text-xs text-saffron-700 font-semibold hover:underline"
+                    >
+                      Didn't receive email? Try another address
+                    </button>
+                  </div>
                 </div>
               )}
             </>

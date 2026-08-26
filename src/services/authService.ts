@@ -181,5 +181,6 @@ export async function logoutUser(): Promise<void> {
 }
 
 export async function resetPassword(email: string): Promise<void> {
-  await sendPasswordResetEmail(auth, email)
+  const cleanEmail = email.trim().toLowerCase()
+  await sendPasswordResetEmail(auth, cleanEmail)
 }
