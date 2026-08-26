@@ -27,10 +27,18 @@ export async function logActivity(params: {
   description: string
 }): Promise<void> {
   try {
-    await addDoc(collection(db, COLLECTION), {
-      ...params,
-      timestamp: Timestamp.now(),
-    })
+    const payload: Record<string, unknown> = {
+      festivalId:  params.festivalId,
+      userId:      params.userId,
+      userName:    params.userName,
+      role:        params.role,
+      action:      params.action,
+      entityType:  params.entityType,
+      description: params.description,
+      timestamp:   Timestamp.now(),
+    }
+    if (params.entityId?.trim()) payload.entityId = params.entityId.trim()
+    await addDoc(collection(db, COLLECTION), payload)
   } catch (err) {
     // Non-blocking — log failure should not break main flow
     console.error('Activity log failed:', err)

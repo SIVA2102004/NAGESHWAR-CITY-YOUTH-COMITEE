@@ -49,11 +49,24 @@ export async function createFestival(data: {
   upiPayeeName?: string
   createdBy:     string
 }): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
-    ...data,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
+  const cleanData: Record<string, unknown> = {
+    name:          data.name,
+    committeeName: data.committeeName,
+    festivalYear:  data.festivalYear,
+    targetAmount:  data.targetAmount || 0,
+    createdBy:     data.createdBy,
+    createdAt:     serverTimestamp(),
+    updatedAt:     serverTimestamp(),
+  }
+
+  if (data.address?.trim())       cleanData.address       = data.address.trim()
+  if (data.contactNumber?.trim()) cleanData.contactNumber = data.contactNumber.trim()
+  if (data.email?.trim())         cleanData.email         = data.email.trim()
+  if (data.logo?.trim())          cleanData.logo          = data.logo.trim()
+  if (data.upiId?.trim())         cleanData.upiId         = data.upiId.trim()
+  if (data.upiPayeeName?.trim())  cleanData.upiPayeeName  = data.upiPayeeName.trim()
+
+  const ref = await addDoc(collection(db, COLLECTION), cleanData)
   return ref.id
 }
 
@@ -74,10 +87,15 @@ export async function updateFestival(
   id: string,
   data: Partial<Omit<Festival, 'id' | 'createdAt' | 'createdBy'>>
 ): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), {
-    ...data,
+  const cleanData: Record<string, unknown> = {
     updatedAt: serverTimestamp(),
-  })
+  }
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      cleanData[key] = value
+    }
+  }
+  await updateDoc(doc(db, COLLECTION, id), cleanData)
 }
 
 export async function getAllFestivals(): Promise<Festival[]> {
