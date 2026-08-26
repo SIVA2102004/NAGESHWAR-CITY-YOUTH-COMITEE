@@ -374,8 +374,9 @@ export default function AdminDashboard() {
                       })
                       setRecentCodes(prev => [ic, ...prev])
                       toast.success(`Invite Code ${ic.code} generated!`)
-                    } catch {
-                      toast.error('Failed to generate invite code')
+                    } catch (err: unknown) {
+                      const msg = err instanceof Error ? err.message : 'Failed to generate invite code'
+                      toast.error(msg)
                     } finally {
                       setGenLoading(false)
                     }

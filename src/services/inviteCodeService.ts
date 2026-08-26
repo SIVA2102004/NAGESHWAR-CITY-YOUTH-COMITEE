@@ -70,19 +70,6 @@ export async function createInviteCode(params: {
   maxUses?:       number
   expiresInDays?: number
 }): Promise<InviteCode> {
-  // If creating an Admin invite code, verify that this committee does not already have an active admin
-  if (params.type === 'ADMIN_INVITE') {
-    const existingAdmins = await getUsersByRole(params.festivalId, 'admin')
-    const localAdmins = existingAdmins.filter(
-      (a) => !a.isSuperAdmin && a.email !== 'jakkasivasubramanyam2004@gmail.com'
-    )
-    if (localAdmins.length >= 1) {
-      throw new Error(
-        `This committee already has an Administrator assigned (${localAdmins[0].name}). Each committee can only have 1 designated Admin.`
-      )
-    }
-  }
-
   const code = generateCode()
   let expiresAt: Timestamp | undefined
   if (params.expiresInDays) {
@@ -91,7 +78,7 @@ export async function createInviteCode(params: {
     expiresAt = Timestamp.fromDate(d)
   }
 
-  const effectiveMaxUses = params.type === 'ADMIN_INVITE' ? 1 : (params.maxUses ?? 0)
+  const effectiveMaxUses = params.maxUses ?? (params.type === 'ADMIN_INVITE' ? 1 : 0)
 
   const payload: Record<string, unknown> = {
     code,

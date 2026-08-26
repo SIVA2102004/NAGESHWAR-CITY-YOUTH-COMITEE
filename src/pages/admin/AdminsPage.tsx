@@ -162,8 +162,9 @@ export default function AdminsPage() {
       })
       setAdminCodes(prev => [ic, ...prev])
       toast.success(`Admin Invite Code ${ic.code} generated!`)
-    } catch {
-      toast.error('Failed to generate invite code')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate invite code'
+      toast.error(msg)
     } finally {
       setGenLoading(false)
     }

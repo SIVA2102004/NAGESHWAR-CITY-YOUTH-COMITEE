@@ -69,19 +69,7 @@ export async function registerWithInviteCode(params: {
 
   // Determine role from code type
   let role: UserRole = 'member'
-  if (inviteCode.type === 'ADMIN_INVITE') {
-    role = 'admin'
-    // Enforce strictly 1 Admin per Committee
-    const existingAdmins = await getUsersByRole(targetFestivalId, 'admin')
-    const otherAdmins = existingAdmins.filter(
-      (a) => !a.isSuperAdmin && a.email !== 'jakkasivasubramanyam2004@gmail.com'
-    )
-    if (otherAdmins.length >= 1) {
-      throw new Error(
-        `This committee already has an Administrator assigned (${otherAdmins[0].name}). Each committee can only have 1 designated Admin.`
-      )
-    }
-  }
+  if (inviteCode.type === 'ADMIN_INVITE') role = 'admin'
   if (inviteCode.type === 'VOLUNTEER_INVITE') role = 'volunteer'
 
   let uid = ''
