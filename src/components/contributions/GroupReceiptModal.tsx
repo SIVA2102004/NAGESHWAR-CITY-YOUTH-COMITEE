@@ -31,6 +31,7 @@ export default function GroupReceiptModal({
 
   // Send STRICTLY INDIVIDUAL message containing ONLY this member's details
   const sendIndividualWhatsApp = (c: Contribution) => {
+    const digitalReceiptUrl = `${window.location.origin}/receipt/${c.id}`
     const message = `🙏 *${committeeName.toUpperCase()}* 🙏
 *Ganesh Festival ${festivalYear} Official Receipt*
 ----------------------------------------
@@ -42,6 +43,9 @@ ${c.houseNumber ? `🏠 *Room / Flat:* ${c.houseNumber}\n` : ''}💰 *Amount Pai
 🏛️ *Department:* ${c.departmentName || 'General'}
 🙏 *Collected By:* ${c.collectedBy}
 ${c.notes ? `📝 *Ref / Details:* ${c.notes}\n` : ''}----------------------------------------
+👉 *View & Download Official Digital Receipt Card:*
+${digitalReceiptUrl}
+
 *May Lord Ganesha bestow good health, wisdom, and prosperity upon you and your family!*
 🌸 *Ganpati Bappa Morya!* 🌸`
 

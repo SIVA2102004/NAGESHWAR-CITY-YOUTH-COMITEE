@@ -15,6 +15,7 @@ import MemberLayout from './components/layout/MemberLayout'
 import LoginPage from './pages/public/LoginPage'
 import JoinPage from './pages/public/JoinPage'
 import SetupPage from './pages/public/SetupPage'
+import PublicReceiptPage from './pages/public/PublicReceiptPage'
 import NotFoundPage from './pages/public/NotFoundPage'
 
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/join" element={<JoinPage />} />
             <Route path="/setup" element={<SetupPage />} />
+            <Route path="/receipt/:id" element={<PublicReceiptPage />} />
 
             {/* Admin Routes */}
             <Route element={<AdminRoute />}>

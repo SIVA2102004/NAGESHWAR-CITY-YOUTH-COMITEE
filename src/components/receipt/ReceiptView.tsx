@@ -1,5 +1,7 @@
-import React, { useRef } from 'react'
-import { Printer, Share2, CheckCircle2 } from 'lucide-react'
+import React, { useRef, useState } from 'react'
+import { Printer, Share2, CheckCircle2, Download } from 'lucide-react'
+import html2canvas from 'html2canvas'
+import toast from 'react-hot-toast'
 import { formatDate, formatCurrency, whatsappLink } from '../../utils/formatters'
 import type { Contribution, Festival } from '../../types'
 import Button from '../ui/Button'
@@ -30,6 +32,7 @@ function amountToWords(num: number): string {
 
 export default function ReceiptView({ contribution, festival, onClose }: Props) {
   const printRef = useRef<HTMLDivElement>(null)
+  const [downloading, setDownloading] = useState(false)
 
   const handlePrint = () => {
     const printContent = printRef.current?.innerHTML || ''
@@ -87,6 +90,30 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
     }, 400)
   }
 
+  const handleDownloadImage = async () => {
+    if (!printRef.current) return
+    setDownloading(true)
+    try {
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#fffdfa',
+      })
+      const link = document.createElement('a')
+      link.download = `Receipt_${contribution.receiptNumber}_${contribution.contributorName.replace(/\s+/g, '_')}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+      toast.success('Official Receipt image downloaded! 🖼️')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to download image')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const digitalReceiptUrl = `${window.location.origin}/receipt/${contribution.id}`
+
   const whatsappMsg = [
     `🙏 *${(festival.committeeName || 'GANESH COMMITTEE').toUpperCase()}* 🙏`,
     '✨ *॥ ॐ गं गणपतये नमः ॥* ✨',
@@ -102,6 +129,9 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
     `🚩 *Department:* ${contribution.departmentName || 'Festival Committee'}`,
     `🤝 *Collected By:* ${contribution.collectedBy}`,
     contribution.notes ? `📝 *Ref / Notes:* ${contribution.notes}` : '',
+    '',
+    `👉 *View & Download Official Digital Receipt Card:*`,
+    `${digitalReceiptUrl}`,
     '',
     '🙏 *May Lord Ganesha bless you and your family with health, wealth & wisdom!*',
     '🚩 *Ganpati Bappa Morya!*',
@@ -238,18 +268,33 @@ export default function ReceiptView({ contribution, festival, onClose }: Props) 
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap items-center justify-between gap-2 no-print pt-2">
-        <Button variant="secondary" icon={<Printer size={16} />} onClick={handlePrint}>
-          Print Receipt
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 no-print pt-2">
+        <Button
+          variant="outline"
+          icon={<Download size={16} />}
+          onClick={handleDownloadImage}
+          loading={downloading}
+          className="bg-white hover:bg-amber-50 text-amber-900 border-amber-300 font-bold"
+        >
+          Save as Image
+        </Button>
+
+        <Button
+          variant="secondary"
+          icon={<Printer size={16} />}
+          onClick={handlePrint}
+          className="font-bold"
+        >
+          Print / PDF
         </Button>
 
         <a
           href={wLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white font-bold rounded-xl hover:bg-[#20bd5a] transition-all shadow-md text-sm"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366] text-white font-bold rounded-xl hover:bg-[#20bd5a] transition-all shadow-md text-sm"
         >
-          <Share2 size={16} /> Share on WhatsApp
+          <Share2 size={16} /> Share WhatsApp
         </a>
       </div>
     </div>
