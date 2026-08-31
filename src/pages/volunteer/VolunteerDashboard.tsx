@@ -13,7 +13,6 @@ import Button from '../../components/ui/Button'
 import AnnouncementCard from '../../components/shared/AnnouncementCard'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
 import AddContributionModal from '../../components/contributions/AddContributionModal'
-import SmartAutoPayModal from '../../components/contributions/SmartAutoPayModal'
 import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import type { Contribution, AppUser, Announcement, Department } from '../../types'
@@ -28,7 +27,6 @@ export default function VolunteerDashboard() {
   const [members, setMembers] = useState<AppUser[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [smartPayOpen, setSmartPayOpen] = useState(false)
 
   // Single Receipt Modal
   const [receiptOpen, setReceiptOpen] = useState(false)
@@ -80,18 +78,9 @@ export default function VolunteerDashboard() {
             Welcome, {user?.name} • Department: <span className="font-semibold text-saffron-700">{user?.departmentName || 'Assigned'}</span>
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setSmartPayOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-saffron-600 via-gold-600 to-amber-600 hover:from-saffron-700 hover:to-amber-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 animate-pulse"
-          >
-            <span>⚡ Smart Auto-Pay (Auto-Bill)</span>
-          </button>
-          <Button icon={<Plus size={16} />} onClick={() => setAddModalOpen(true)}>
-            Record Collection (Manual)
-          </Button>
-        </div>
+        <Button icon={<Plus size={16} />} onClick={() => setAddModalOpen(true)}>
+          Record Collection (Single / Room)
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -181,16 +170,6 @@ export default function VolunteerDashboard() {
           </div>
         </Card>
       </div>
-
-      {/* Smart Auto-Pay (Auto-Bill) Modal */}
-      <SmartAutoPayModal
-        open={smartPayOpen}
-        onClose={() => setSmartPayOpen(false)}
-        festival={festival}
-        user={user}
-        departments={departments}
-        onSuccess={handleAddSuccess}
-      />
 
       {/* Add / Group Contribution Modal */}
       <AddContributionModal

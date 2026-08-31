@@ -26,7 +26,6 @@ import CollectionChart from '../../components/charts/CollectionChart'
 import PaymentMethodChart from '../../components/charts/PaymentMethodChart'
 import ExpenseCategoryChart from '../../components/charts/ExpenseCategoryChart'
 import AddContributionModal from '../../components/contributions/AddContributionModal'
-import SmartAutoPayModal from '../../components/contributions/SmartAutoPayModal'
 import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
@@ -48,7 +47,6 @@ export default function AdminDashboard() {
 
   // Add Contribution Modal State
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [smartPayOpen, setSmartPayOpen] = useState(false)
   const [singleReceiptOpen, setSingleReceiptOpen] = useState(false)
   const [singleReceiptContrib, setSingleReceiptContrib] = useState<Contribution | null>(null)
   const [groupReceiptOpen, setGroupReceiptOpen] = useState(false)
@@ -133,13 +131,6 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex items-center flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setSmartPayOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-saffron-600 via-gold-600 to-amber-600 hover:from-saffron-700 hover:to-amber-700 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 animate-pulse"
-          >
-            <span>⚡ Smart Auto-Pay (Auto-Bill)</span>
-          </button>
           <Button
             icon={<Plus size={15} />}
             onClick={() => setAddModalOpen(true)}
@@ -472,19 +463,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </Modal>
-
-      {/* Smart Auto-Pay (Auto-Bill) Modal */}
-      <SmartAutoPayModal
-        open={smartPayOpen}
-        onClose={() => setSmartPayOpen(false)}
-        festival={festival}
-        user={user}
-        departments={departments}
-        onSuccess={(createdList) => {
-          setSingleReceiptContrib(createdList[0])
-          setSingleReceiptOpen(true)
-        }}
-      />
 
       {/* Main Add / Group Contribution Modal */}
       <AddContributionModal
