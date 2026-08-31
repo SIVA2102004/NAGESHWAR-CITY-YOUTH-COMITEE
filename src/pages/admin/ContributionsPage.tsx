@@ -20,6 +20,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import SearchFilter from '../../components/ui/SearchFilter'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
 import AddContributionModal from '../../components/contributions/AddContributionModal'
+import SmartAutoPayModal from '../../components/contributions/SmartAutoPayModal'
 import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
 import type { Contribution, Department, PaymentMethod, PaymentStatus } from '../../types'
@@ -46,6 +47,7 @@ export default function ContributionsPage() {
 
   // Add & Group Modal State
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [smartPayOpen, setSmartPayOpen] = useState(false)
   const [editingModalOpen, setEditingModalOpen] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
   const [deleting, setDeleting] = useState<Contribution | null>(null)
@@ -226,6 +228,13 @@ export default function ContributionsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setSmartPayOpen(true)}
+            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-saffron-600 via-gold-600 to-amber-600 hover:from-saffron-700 hover:to-amber-700 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 animate-pulse"
+          >
+            <span>⚡ Smart Auto-Pay (Auto-Bill)</span>
+          </button>
           <Button
             variant="outline"
             icon={<Download size={15} />}
@@ -439,6 +448,19 @@ export default function ContributionsPage() {
           </table>
         </div>
       )}
+
+      {/* Smart Auto-Pay (Auto-Bill) Modal */}
+      <SmartAutoPayModal
+        open={smartPayOpen}
+        onClose={() => setSmartPayOpen(false)}
+        festival={festival}
+        user={user}
+        departments={departments}
+        onSuccess={(createdList) => {
+          setSingleReceiptContrib(createdList[0])
+          setSingleReceiptOpen(true)
+        }}
+      />
 
       {/* Main Add / Group Contribution Modal */}
       <AddContributionModal
