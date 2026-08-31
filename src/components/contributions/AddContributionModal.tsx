@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   User,
   Users,
@@ -16,9 +16,8 @@ import {
   Copy,
   Check,
   Banknote,
-  Mic,
-  MicOff,
   Volume2,
+  VolumeX,
   Languages
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -30,7 +29,7 @@ import { createContribution } from '../../services/contributionService'
 import { logActivity } from '../../services/activityService'
 import { formatCurrency } from '../../utils/formatters'
 import { playSuccessChime } from '../../utils/soundEffects'
-import { parseVoiceSpeech } from '../../utils/voiceParser'
+import { announcePaymentSuccess } from '../../utils/voiceAnnouncer'
 import type { Contribution, Department, Festival, PaymentMethod, PaymentStatus } from '../../types'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['UPI', 'Cash', 'Online', 'Cheque']
@@ -75,14 +74,9 @@ export default function AddContributionModal({
   const [createdContributions, setCreatedContributions] = useState<Contribution[]>([])
   const [submittingManual, setSubmittingManual] = useState(false)
 
-  // ==========================================
-  // 🧠 AI VOICE COLLECTION STATE
-  // ==========================================
-  const [isListening, setIsListening] = useState(false)
-  const [voiceLang, setVoiceLang] = useState<'en-IN' | 'te-IN'>('en-IN')
-  const [voiceTranscript, setVoiceTranscript] = useState('')
-  const [voiceHighlight, setVoiceHighlight] = useState(false)
-  const recognitionRef = useRef<any>(null)
+  // 🔊 AI Voice Soundbox Settings
+  const [announcerLang, setAnnouncerLang] = useState<'en-IN' | 'te-IN'>('en-IN')
+  const [voiceMuted, setVoiceMuted] = useState(false)
 
   // ==========================================
   // SINGLE FORM STATE
@@ -125,8 +119,6 @@ export default function AddContributionModal({
       setSingleHouse('')
       setSingleAmount('')
       setSingleNotes('')
-      setVoiceTranscript('')
-      setIsListening(false)
       setCreatedContributions([])
       setIsVerifyingSmart(false)
 
@@ -138,17 +130,6 @@ export default function AddContributionModal({
       }
     }
   }, [open, user, departments])
-
-  // Stop voice recognition when modal closes
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop()
-        } catch {}
-      }
-    }
-  }, [])
 
   // Timer countdown while scanning QR in Smart Mode
   useEffect(() => {
@@ -164,112 +145,6 @@ export default function AddContributionModal({
     }, 1000)
     return () => clearInterval(timer)
   }, [smartStep])
-
-  // ==========================================
-  // 🧠 AI VOICE LISTENER HANDLER
-  // ==========================================
-  const toggleVoiceRecognition = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-
-    if (!SpeechRecognition) {
-      toast.error('Voice input is not supported in this browser. Please use Chrome or Edge.')
-      return
-    }
-
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-      }
-      setIsListening(false)
-      return
-    }
-
-    try {
-      const recognition = new SpeechRecognition()
-      recognition.lang = voiceLang
-      recognition.continuous = false
-      recognition.interimResults = true
-
-      recognition.onstart = () => {
-        setIsListening(true)
-        setVoiceTranscript('')
-        toast('🎙️ Listening... Speak devotee details now', { icon: '👂' })
-      }
-
-      recognition.onresult = (event: any) => {
-        const current = event.resultIndex
-        const transcript = event.results[current][0].transcript
-        setVoiceTranscript(transcript)
-
-        // Process final speech
-        if (event.results[current].isFinal) {
-          handleVoiceParse(transcript)
-        }
-      }
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
-        setIsListening(false)
-        if (event.error === 'not-allowed') {
-          toast.error('Microphone permission was denied. Please allow mic access in your browser settings.')
-        } else {
-          toast.error(`Voice error: ${event.error}`)
-        }
-      }
-
-      recognition.onend = () => {
-        setIsListening(false)
-      }
-
-      recognitionRef.current = recognition
-      recognition.start()
-    } catch (e) {
-      console.error(e)
-      setIsListening(false)
-      toast.error('Failed to start voice recognition.')
-    }
-  }
-
-  const handleVoiceParse = (spokenText: string) => {
-    const parsed = parseVoiceSpeech(spokenText)
-
-    if (parsed.name) setSingleName(parsed.name)
-    if (parsed.room) {
-      setSingleHouse(parsed.room)
-      setRoomNumber(parsed.room)
-    }
-    if (parsed.amount) {
-      setSingleAmount(parsed.amount.toString())
-      setSplitTotalInput(parsed.amount.toString())
-    }
-    if (parsed.paymentMethod) {
-      if (parsed.paymentMethod === 'UPI') {
-        setFlowMode('smart_upi')
-      } else {
-        setFlowMode('manual')
-        setSingleManualMethod(parsed.paymentMethod)
-      }
-    }
-
-    // Visual pulse feedback
-    setVoiceHighlight(true)
-    setTimeout(() => setVoiceHighlight(false), 2000)
-
-    const summary = [
-      parsed.name ? `👤 ${parsed.name}` : '',
-      parsed.room ? `🏠 Room ${parsed.room}` : '',
-      parsed.amount ? `₹${parsed.amount}` : '',
-      parsed.paymentMethod ? `💳 ${parsed.paymentMethod}` : '',
-    ]
-      .filter(Boolean)
-      .join(' • ')
-
-    if (summary) {
-      toast.success(`✨ AI Auto-Filled: ${summary}`, { duration: 4000 })
-    } else {
-      toast('Could not recognize structured fields. Try speaking clearly: "Room 204, Ravi, 500 rupees UPI"', { icon: 'ℹ️' })
-    }
-  }
 
   const targetUpiId = festival?.upiId || 'jakkasivasubramanyamguptha@okaxis'
   const payeeName = festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth Committee'
@@ -326,7 +201,7 @@ export default function AddContributionModal({
     setSmartStep('qr_scan')
   }
 
-  // ⚡ CONFIRM SMART AUTO-PAY & AUTO-GENERATE BILLS
+  // ⚡ CONFIRM SMART AUTO-PAY & AUTO-GENERATE BILLS + 🔊 TRIGGER AI VOICE BLESSING
   const handleCompleteSmartBill = async (simulated = false) => {
     if (!festival || !user) return
     setIsVerifyingSmart(true)
@@ -350,7 +225,21 @@ export default function AddContributionModal({
           createdBy: user.uid,
         })
 
+        // 🔊 1. Play celebration chime
         playSuccessChime()
+
+        // 🔊 2. AI Voice Announcer: "Room 204, Siva paid 200 rupees. May Lord Ganesha bless him!"
+        if (!voiceMuted) {
+          setTimeout(() => {
+            announcePaymentSuccess({
+              name: singleName.trim(),
+              amount: numericSingleAmount,
+              roomNumber: singleHouse.trim() || undefined,
+              isGroup: false,
+              lang: announcerLang,
+            })
+          }, 300)
+        }
 
         await logActivity({
           festivalId: festival.id,
@@ -402,7 +291,22 @@ export default function AddContributionModal({
           createdList.push(c)
         }
 
+        // 🔊 1. Play celebration chime
         playSuccessChime()
+
+        // 🔊 2. AI Voice Announcer for Group
+        if (!voiceMuted) {
+          setTimeout(() => {
+            announcePaymentSuccess({
+              name: `Room ${roomNumber.trim()}`,
+              amount: groupTotalAmount,
+              roomNumber: roomNumber.trim() || undefined,
+              isGroup: true,
+              memberCount: createdList.length,
+              lang: announcerLang,
+            })
+          }, 300)
+        }
 
         await logActivity({
           festivalId: festival.id,
@@ -422,6 +326,27 @@ export default function AddContributionModal({
       toast.error(err instanceof Error ? err.message : 'Failed to finalize receipts')
     } finally {
       setIsVerifyingSmart(false)
+    }
+  }
+
+  const handleReplayVoice = () => {
+    if (tabMode === 'single') {
+      announcePaymentSuccess({
+        name: singleName.trim(),
+        amount: numericSingleAmount,
+        roomNumber: singleHouse.trim() || undefined,
+        isGroup: false,
+        lang: announcerLang,
+      })
+    } else {
+      announcePaymentSuccess({
+        name: `Room ${roomNumber.trim()}`,
+        amount: groupTotalAmount,
+        roomNumber: roomNumber.trim() || undefined,
+        isGroup: true,
+        memberCount: createdContributions.length,
+        lang: announcerLang,
+      })
     }
   }
 
@@ -471,6 +396,17 @@ export default function AddContributionModal({
           notes: singleNotes.trim() || undefined,
           createdBy: user.uid,
         })
+
+        playSuccessChime()
+        if (!voiceMuted) {
+          announcePaymentSuccess({
+            name: singleName.trim(),
+            amount: parseFloat(singleAmount),
+            roomNumber: singleHouse.trim() || undefined,
+            isGroup: false,
+            lang: announcerLang,
+          })
+        }
 
         toast.success(`Contribution of ${formatCurrency(c.amount)} saved!`)
         await logActivity({
@@ -528,6 +464,18 @@ export default function AddContributionModal({
           })
 
           createdList.push(c)
+        }
+
+        playSuccessChime()
+        if (!voiceMuted) {
+          announcePaymentSuccess({
+            name: `Room ${roomNumber.trim()}`,
+            amount: groupTotalAmount,
+            roomNumber: roomNumber.trim() || undefined,
+            isGroup: true,
+            memberCount: createdList.length,
+            lang: announcerLang,
+          })
         }
 
         toast.success(
@@ -633,84 +581,47 @@ export default function AddContributionModal({
       }
     >
       <div className="space-y-4">
-        {/* Step 1: Mode Selectors & 🧠 AI Voice Fill Bar */}
+        {/* Step 1: Mode Selectors & 🔊 Soundbox Banner */}
         {smartStep === 'input' && (
           <div className="space-y-3">
-            {/* 🧠 AI VOICE COLLECTION SMART BANNER */}
-            <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-amber-900 text-white p-3 rounded-2xl shadow-lg border border-purple-500/30 space-y-2.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-white/10 rounded-xl text-gold-300">
-                    <Sparkles size={16} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black tracking-wide text-gold-200 uppercase flex items-center gap-1.5">
-                      🧠 AI Voice Auto-Fill
-                      <span className="text-[9px] bg-saffron-500 text-white px-1.5 py-0.2 rounded-full uppercase font-black tracking-wider">
-                        Trial
-                      </span>
-                    </h4>
-                    <p className="text-[11px] text-gray-200">
-                      Speak in English or Telugu — forms auto-fill instantly!
-                    </p>
-                  </div>
+            {/* 🔊 AI SOUNDBOX & DIVINE BLESSING BANNER */}
+            <div className="bg-gradient-to-r from-amber-500/15 via-saffron-500/15 to-orange-500/15 border border-amber-300/80 p-2.5 rounded-2xl flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-amber-500 text-white rounded-xl shadow-xs">
+                  <Volume2 size={16} />
                 </div>
-
-                {/* Language Switcher + Mic Button */}
-                <div className="flex items-center gap-2">
-                  <select
-                    value={voiceLang}
-                    onChange={(e) => setVoiceLang(e.target.value as any)}
-                    className="bg-black/30 border border-white/20 text-white text-xs rounded-xl px-2 py-1.5 font-bold focus:outline-none"
-                  >
-                    <option value="en-IN" className="text-gray-900">🇬🇧 English (India)</option>
-                    <option value="te-IN" className="text-gray-900">🇮🇳 తెలుగు (Telugu)</option>
-                  </select>
-
-                  <button
-                    type="button"
-                    onClick={toggleVoiceRecognition}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black shadow-md transition-all active:scale-95 ${
-                      isListening
-                        ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse ring-4 ring-red-400/40'
-                        : 'bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-600 hover:to-amber-600 text-gray-950 ring-2 ring-gold-300/50'
-                    }`}
-                  >
-                    {isListening ? (
-                      <>
-                        <MicOff size={14} />
-                        <span>Stop Listening</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic size={14} />
-                        <span>Tap to Speak</span>
-                      </>
-                    )}
-                  </button>
+                <div>
+                  <p className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    🔊 AI Soundbox &amp; Divine Blessings
+                    <span className="text-[9px] bg-green-600 text-white px-1.5 py-0.2 rounded-full font-black uppercase">Active</span>
+                  </p>
+                  <p className="text-[11px] text-amber-800">
+                    Announces devotee name, room, amount &amp; blessings upon payment!
+                  </p>
                 </div>
               </div>
 
-              {/* Real-time Listening Transcript */}
-              {isListening && (
-                <div className="bg-black/40 border border-white/20 rounded-xl p-2.5 flex items-start gap-2 animate-pulse">
-                  <Volume2 size={16} className="text-gold-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs">
-                    <span className="text-gold-300 font-bold">Listening... </span>
-                    <span className="text-gray-200 italic font-mono">
-                      {voiceTranscript || (voiceLang === 'en-IN' ? 'Say e.g. "Room 204, Ravi, 500 rupees UPI"' : 'చెప్పండి: "రూమ్ 204 రవి ఐదు వందలు UPI"')}
-                    </span>
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <select
+                  value={announcerLang}
+                  onChange={(e) => setAnnouncerLang(e.target.value as any)}
+                  className="bg-white border border-amber-300 text-amber-950 text-xs rounded-xl px-2 py-1 font-bold shadow-xs focus:outline-none"
+                >
+                  <option value="en-IN">🇬🇧 English Voice</option>
+                  <option value="te-IN">🇮🇳 తెలుగు Voice</option>
+                </select>
 
-              {/* Sample Voice Prompts for Volunteer Reference */}
-              {!isListening && (
-                <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-[11px] text-gray-300 flex items-center justify-between flex-wrap gap-1">
-                  <span>💡 <strong>Voice Example:</strong> {voiceLang === 'en-IN' ? '"Room 204, Ravi, 500 rupees UPI"' : '"రూమ్ 204 రవి ఐదు వందలు UPI"'}</span>
-                  <span className="text-[10px] text-gold-300 font-bold">Auto-fills Name, Room, Amount &amp; UPI!</span>
-                </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setVoiceMuted(!voiceMuted)}
+                  title={voiceMuted ? 'Unmute Soundbox' : 'Mute Soundbox'}
+                  className={`p-1.5 rounded-xl border text-xs font-bold transition-all ${
+                    voiceMuted ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-green-700 border-green-300'
+                  }`}
+                >
+                  {voiceMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                </button>
+              </div>
             </div>
 
             {/* 1. Main Scope Tab: Individual vs Room Multi-Split */}
@@ -784,7 +695,7 @@ export default function AddContributionModal({
         {/* ========================================================================= */}
         {tabMode === 'single' && smartStep === 'input' && (
           <form onSubmit={flowMode === 'smart_upi' ? handleStartSmartPay : handleManualSubmit} className="space-y-3.5">
-            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-1 rounded-2xl transition-all ${voiceHighlight ? 'ring-2 ring-purple-500 bg-purple-50/50' : ''}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input
                 label="Contributor Name *"
                 value={singleName}
@@ -809,7 +720,7 @@ export default function AddContributionModal({
                 label="House / Flat / Room No"
                 value={singleHouse}
                 onChange={(e) => setSingleHouse(e.target.value)}
-                placeholder="e.g. Flat 302 / Room 12"
+                placeholder="e.g. Room 204 / Flat 302"
                 icon={<Home size={16} />}
               />
               <div>
@@ -1235,11 +1146,34 @@ export default function AddContributionModal({
               </h2>
               <p className="text-sm text-gray-600 mt-1">
                 {tabMode === 'single' ? (
-                  <>{singleName} paid <strong className="text-green-700">{formatCurrency(numericSingleAmount)}</strong></>
+                  <>{singleName} {singleHouse ? `(Room ${singleHouse})` : ''} paid <strong className="text-green-700">{formatCurrency(numericSingleAmount)}</strong></>
                 ) : (
                   <>Room {roomNumber} paid <strong className="text-green-700">{formatCurrency(groupTotalAmount)}</strong> ({createdContributions.length} Member Bills Generated)</>
                 )}
               </p>
+            </div>
+
+            {/* 🔊 Soundbox Announcement Bar on Success Screen */}
+            <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-300 rounded-2xl p-3 flex items-center justify-between text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🔊</span>
+                <div>
+                  <p className="text-xs font-bold text-amber-950">
+                    AI Voice Soundbox Announcement
+                  </p>
+                  <p className="text-[10px] text-amber-800">
+                    {announcerLang === 'en-IN' ? 'Spoke: "Room, Devotee, Amount & Lord Ganesha Blessing"' : 'చెప్పబడింది: "రూమ్, భక్తుడి పేరు, మొత్తం & గణపతి బప్పా ఆశీస్సులు"'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleReplayVoice}
+                className="inline-flex items-center gap-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded-xl shadow-xs transition-all active:scale-95"
+              >
+                <Volume2 size={13} />
+                <span>Replay Voice</span>
+              </button>
             </div>
 
             {/* List of created receipts */}
