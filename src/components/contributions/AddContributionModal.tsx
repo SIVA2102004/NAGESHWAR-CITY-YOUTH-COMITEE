@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   User,
   Users,
@@ -7,7 +7,6 @@ import {
   IndianRupee,
   Phone,
   Home,
-  QrCode,
   Sparkles,
   Smartphone,
   CheckCircle2,
@@ -17,18 +16,21 @@ import {
   Copy,
   Check,
   Banknote,
-  Receipt
+  Mic,
+  MicOff,
+  Volume2,
+  Languages
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
 import Modal from '../ui/Modal'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
-import UpiQrCode from '../shared/UpiQrCode'
 import { createContribution } from '../../services/contributionService'
 import { logActivity } from '../../services/activityService'
 import { formatCurrency } from '../../utils/formatters'
 import { playSuccessChime } from '../../utils/soundEffects'
+import { parseVoiceSpeech } from '../../utils/voiceParser'
 import type { Contribution, Department, Festival, PaymentMethod, PaymentStatus } from '../../types'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['UPI', 'Cash', 'Online', 'Cheque']
@@ -74,6 +76,15 @@ export default function AddContributionModal({
   const [submittingManual, setSubmittingManual] = useState(false)
 
   // ==========================================
+  // 🧠 AI VOICE COLLECTION STATE
+  // ==========================================
+  const [isListening, setIsListening] = useState(false)
+  const [voiceLang, setVoiceLang] = useState<'en-IN' | 'te-IN'>('en-IN')
+  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [voiceHighlight, setVoiceHighlight] = useState(false)
+  const recognitionRef = useRef<any>(null)
+
+  // ==========================================
   // SINGLE FORM STATE
   // ==========================================
   const [singleName, setSingleName] = useState('')
@@ -85,7 +96,6 @@ export default function AddContributionModal({
   const [singleManualMethod, setSingleManualMethod] = useState<PaymentMethod>('Cash')
   const [singleManualStatus, setSingleManualStatus] = useState<PaymentStatus>('Paid')
   const [singleNotes, setSingleNotes] = useState('')
-  const [singleUtr, setSingleUtr] = useState('')
 
   // ==========================================
   // GROUP MULTI-MEMBER FORM STATE
@@ -96,7 +106,6 @@ export default function AddContributionModal({
   const [groupManualMethod, setGroupManualMethod] = useState<PaymentMethod>('Cash')
   const [groupManualStatus, setGroupManualStatus] = useState<PaymentStatus>('Paid')
   const [groupNotes, setGroupNotes] = useState('')
-  const [groupUtr, setGroupUtr] = useState('')
   const [splitTotalInput, setSplitTotalInput] = useState('')
 
   const [members, setMembers] = useState<GroupMemberRow[]>([
@@ -116,7 +125,8 @@ export default function AddContributionModal({
       setSingleHouse('')
       setSingleAmount('')
       setSingleNotes('')
-      setSingleUtr('')
+      setVoiceTranscript('')
+      setIsListening(false)
       setCreatedContributions([])
       setIsVerifyingSmart(false)
 
@@ -128,6 +138,17 @@ export default function AddContributionModal({
       }
     }
   }, [open, user, departments])
+
+  // Stop voice recognition when modal closes
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch {}
+      }
+    }
+  }, [])
 
   // Timer countdown while scanning QR in Smart Mode
   useEffect(() => {
@@ -143,6 +164,112 @@ export default function AddContributionModal({
     }, 1000)
     return () => clearInterval(timer)
   }, [smartStep])
+
+  // ==========================================
+  // 🧠 AI VOICE LISTENER HANDLER
+  // ==========================================
+  const toggleVoiceRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+
+    if (!SpeechRecognition) {
+      toast.error('Voice input is not supported in this browser. Please use Chrome or Edge.')
+      return
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+      setIsListening(false)
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.lang = voiceLang
+      recognition.continuous = false
+      recognition.interimResults = true
+
+      recognition.onstart = () => {
+        setIsListening(true)
+        setVoiceTranscript('')
+        toast('🎙️ Listening... Speak devotee details now', { icon: '👂' })
+      }
+
+      recognition.onresult = (event: any) => {
+        const current = event.resultIndex
+        const transcript = event.results[current][0].transcript
+        setVoiceTranscript(transcript)
+
+        // Process final speech
+        if (event.results[current].isFinal) {
+          handleVoiceParse(transcript)
+        }
+      }
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        setIsListening(false)
+        if (event.error === 'not-allowed') {
+          toast.error('Microphone permission was denied. Please allow mic access in your browser settings.')
+        } else {
+          toast.error(`Voice error: ${event.error}`)
+        }
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognitionRef.current = recognition
+      recognition.start()
+    } catch (e) {
+      console.error(e)
+      setIsListening(false)
+      toast.error('Failed to start voice recognition.')
+    }
+  }
+
+  const handleVoiceParse = (spokenText: string) => {
+    const parsed = parseVoiceSpeech(spokenText)
+
+    if (parsed.name) setSingleName(parsed.name)
+    if (parsed.room) {
+      setSingleHouse(parsed.room)
+      setRoomNumber(parsed.room)
+    }
+    if (parsed.amount) {
+      setSingleAmount(parsed.amount.toString())
+      setSplitTotalInput(parsed.amount.toString())
+    }
+    if (parsed.paymentMethod) {
+      if (parsed.paymentMethod === 'UPI') {
+        setFlowMode('smart_upi')
+      } else {
+        setFlowMode('manual')
+        setSingleManualMethod(parsed.paymentMethod)
+      }
+    }
+
+    // Visual pulse feedback
+    setVoiceHighlight(true)
+    setTimeout(() => setVoiceHighlight(false), 2000)
+
+    const summary = [
+      parsed.name ? `👤 ${parsed.name}` : '',
+      parsed.room ? `🏠 Room ${parsed.room}` : '',
+      parsed.amount ? `₹${parsed.amount}` : '',
+      parsed.paymentMethod ? `💳 ${parsed.paymentMethod}` : '',
+    ]
+      .filter(Boolean)
+      .join(' • ')
+
+    if (summary) {
+      toast.success(`✨ AI Auto-Filled: ${summary}`, { duration: 4000 })
+    } else {
+      toast('Could not recognize structured fields. Try speaking clearly: "Room 204, Ravi, 500 rupees UPI"', { icon: 'ℹ️' })
+    }
+  }
 
   const targetUpiId = festival?.upiId || 'jakkasivasubramanyamguptha@okaxis'
   const payeeName = festival?.upiPayeeName || festival?.committeeName || 'Sri Nageshwar Youth Committee'
@@ -161,7 +288,7 @@ export default function AddContributionModal({
       : `Ganesh Chanda 2026 - Room ${roomNumber || 'Group'} (${members.filter(m => m.name.trim()).length} Members)`
   )}&tr=${encodeURIComponent(smartTxnRef || 'GC' + Date.now().toString().slice(-6))}`
 
-  // ⚡ START SMART AUTO-PAY (GENERATE DYNAMIC AMOUNT-LOCKED QR)
+  // ⚡ START SMART AUTO-PAY
   const handleStartSmartPay = (e: React.FormEvent) => {
     e.preventDefault()
     if (tabMode === 'single') {
@@ -199,7 +326,7 @@ export default function AddContributionModal({
     setSmartStep('qr_scan')
   }
 
-  // ⚡ CONFIRM SMART AUTO-PAY & AUTO-GENERATE BILLS (Single or Multi-Split)
+  // ⚡ CONFIRM SMART AUTO-PAY & AUTO-GENERATE BILLS
   const handleCompleteSmartBill = async (simulated = false) => {
     if (!festival || !user) return
     setIsVerifyingSmart(true)
@@ -240,7 +367,6 @@ export default function AddContributionModal({
         setSmartStep('paid_success')
         toast.success(simulated ? '⚡ Bank Credit Verified! Bill Generated!' : 'Payment verified successfully!')
       } else {
-        // Multi-Split Room Mode: Generate all receipts simultaneously!
         const validMembers = members.filter(m => m.name.trim() !== '' && (parseFloat(m.amount) || 0) > 0)
         const selectedDept = departments.find((d) => d.id === groupDeptId)
         const createdList: Contribution[] = []
@@ -310,7 +436,7 @@ export default function AddContributionModal({
     }
   }
 
-  // 💵 MANUAL FORM SUBMIT (FOR CASH / CHEQUE)
+  // 💵 MANUAL FORM SUBMIT
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!festival || !user) {
@@ -328,12 +454,6 @@ export default function AddContributionModal({
         }
 
         const dept = departments.find((d) => d.id === singleDeptId)
-        const combinedNotes = [
-          singleUtr.trim() ? `Ref/UTR: ${singleUtr.trim()}` : '',
-          singleNotes.trim(),
-        ]
-          .filter(Boolean)
-          .join(' • ')
 
         const c = await createContribution({
           festivalId: festival.id,
@@ -348,7 +468,7 @@ export default function AddContributionModal({
           collectedByUid: user.uid,
           departmentId: singleDeptId || user.departmentId || 'general',
           departmentName: dept?.name || singleDeptName || user.departmentName || 'General',
-          notes: combinedNotes || undefined,
+          notes: singleNotes.trim() || undefined,
           createdBy: user.uid,
         })
 
@@ -384,7 +504,6 @@ export default function AddContributionModal({
           const amountNum = parseFloat(member.amount) || 0
           const noteText = [
             roomNumber ? `Room/Flat: ${roomNumber}` : '',
-            groupUtr.trim() ? `Ref/UTR: ${groupUtr.trim()}` : '',
             `Group Contribution (${validMembers.length} Members)`,
             groupNotes.trim(),
           ]
@@ -514,9 +633,86 @@ export default function AddContributionModal({
       }
     >
       <div className="space-y-4">
-        {/* Step 1 or Manual Mode Top Selectors */}
+        {/* Step 1: Mode Selectors & 🧠 AI Voice Fill Bar */}
         {smartStep === 'input' && (
           <div className="space-y-3">
+            {/* 🧠 AI VOICE COLLECTION SMART BANNER */}
+            <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-amber-900 text-white p-3 rounded-2xl shadow-lg border border-purple-500/30 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-white/10 rounded-xl text-gold-300">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black tracking-wide text-gold-200 uppercase flex items-center gap-1.5">
+                      🧠 AI Voice Auto-Fill
+                      <span className="text-[9px] bg-saffron-500 text-white px-1.5 py-0.2 rounded-full uppercase font-black tracking-wider">
+                        Trial
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-gray-200">
+                      Speak in English or Telugu — forms auto-fill instantly!
+                    </p>
+                  </div>
+                </div>
+
+                {/* Language Switcher + Mic Button */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={voiceLang}
+                    onChange={(e) => setVoiceLang(e.target.value as any)}
+                    className="bg-black/30 border border-white/20 text-white text-xs rounded-xl px-2 py-1.5 font-bold focus:outline-none"
+                  >
+                    <option value="en-IN" className="text-gray-900">🇬🇧 English (India)</option>
+                    <option value="te-IN" className="text-gray-900">🇮🇳 తెలుగు (Telugu)</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={toggleVoiceRecognition}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black shadow-md transition-all active:scale-95 ${
+                      isListening
+                        ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse ring-4 ring-red-400/40'
+                        : 'bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-600 hover:to-amber-600 text-gray-950 ring-2 ring-gold-300/50'
+                    }`}
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff size={14} />
+                        <span>Stop Listening</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic size={14} />
+                        <span>Tap to Speak</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Real-time Listening Transcript */}
+              {isListening && (
+                <div className="bg-black/40 border border-white/20 rounded-xl p-2.5 flex items-start gap-2 animate-pulse">
+                  <Volume2 size={16} className="text-gold-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <span className="text-gold-300 font-bold">Listening... </span>
+                    <span className="text-gray-200 italic font-mono">
+                      {voiceTranscript || (voiceLang === 'en-IN' ? 'Say e.g. "Room 204, Ravi, 500 rupees UPI"' : 'చెప్పండి: "రూమ్ 204 రవి ఐదు వందలు UPI"')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Sample Voice Prompts for Volunteer Reference */}
+              {!isListening && (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-2 text-[11px] text-gray-300 flex items-center justify-between flex-wrap gap-1">
+                  <span>💡 <strong>Voice Example:</strong> {voiceLang === 'en-IN' ? '"Room 204, Ravi, 500 rupees UPI"' : '"రూమ్ 204 రవి ఐదు వందలు UPI"'}</span>
+                  <span className="text-[10px] text-gold-300 font-bold">Auto-fills Name, Room, Amount &amp; UPI!</span>
+                </div>
+              )}
+            </div>
+
             {/* 1. Main Scope Tab: Individual vs Room Multi-Split */}
             <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1.5 rounded-2xl">
               <button
@@ -588,7 +784,7 @@ export default function AddContributionModal({
         {/* ========================================================================= */}
         {tabMode === 'single' && smartStep === 'input' && (
           <form onSubmit={flowMode === 'smart_upi' ? handleStartSmartPay : handleManualSubmit} className="space-y-3.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-1 rounded-2xl transition-all ${voiceHighlight ? 'ring-2 ring-purple-500 bg-purple-50/50' : ''}`}>
               <Input
                 label="Contributor Name *"
                 value={singleName}
