@@ -1,14 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Plus, Edit2, Trash2, Receipt, IndianRupee, Download
-} from 'lucide-react'
-import toast from 'react-hot-toast'
+import { Plus, Download, Edit2, Trash2, IndianRupee, Receipt, Calendar, ArrowUpDown, Clock } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
-import {
-  subscribeToContributions,
-  updateContribution, deleteContribution
-} from '../../services/contributionService'
+import { subscribeToContributions, updateContribution, deleteContribution } from '../../services/contributionService'
 import { getDepartmentsByFestival } from '../../services/departmentService'
 import { logActivity } from '../../services/activityService'
 import Button from '../../components/ui/Button'
@@ -21,8 +15,10 @@ import SearchFilter from '../../components/ui/SearchFilter'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
 import AddContributionModal from '../../components/contributions/AddContributionModal'
 import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
-import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
+import { formatCurrency, formatDate, formatDateTime, exportContributionsToCSV } from '../../utils/formatters'
 import type { Contribution, Department, PaymentMethod, PaymentStatus } from '../../types'
+import { format, isToday, isYesterday, subDays, isAfter, startOfDay } from 'date-fns'
+import toast from 'react-hot-toast'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['Cash', 'Online', 'UPI', 'Cheque']
 const PAYMENT_STATUSES: PaymentStatus[] = ['Paid', 'Pending', 'Partial']
@@ -32,6 +28,9 @@ const statusVariant: Record<PaymentStatus, 'success' | 'warning' | 'info'> = {
   Pending: 'warning',
   Partial: 'info',
 }
+
+type DateFilterRange = 'all' | 'today' | 'yesterday' | 'week' | 'custom'
+type SortOrder = 'newest' | 'oldest' | 'amount_high' | 'amount_low'
 
 export default function ContributionsPage() {
   const { user } = useAuth()
@@ -43,6 +42,11 @@ export default function ContributionsPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterMethod, setFilterMethod] = useState('')
   const [filterDept, setFilterDept] = useState('')
+
+  // 📅 Date Filtering & Sorting State
+  const [dateFilter, setDateFilter] = useState<DateFilterRange>('all')
+  const [customDate, setCustomDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
 
   // Add & Group Modal State
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -97,6 +101,16 @@ export default function ContributionsPage() {
     .filter(c => c.paymentStatus === 'Paid')
     .reduce((s, c) => s + c.amount, 0)
 
+  // 🌟 Calculate Today's Real-Time Metrics
+  const todayContributions = contributions.filter(
+    c => c.createdAt && isToday(c.createdAt) && c.paymentStatus === 'Paid'
+  )
+  const todayTotal = todayContributions.reduce((s, c) => s + c.amount, 0)
+  const todayUPI = todayContributions.filter(c => c.paymentMethod === 'UPI').reduce((s, c) => s + c.amount, 0)
+  const todayCash = todayContributions.filter(c => c.paymentMethod === 'Cash').reduce((s, c) => s + c.amount, 0)
+  const todayOnline = todayContributions.filter(c => c.paymentMethod === 'Online').reduce((s, c) => s + c.amount, 0)
+  const todayCheque = todayContributions.filter(c => c.paymentMethod === 'Cheque').reduce((s, c) => s + c.amount, 0)
+
   // Unique Collectors List
   const uniqueCollectors = Array.from(
     new Set(contributions.map(c => c.collectedBy).filter(Boolean))
@@ -108,6 +122,18 @@ export default function ContributionsPage() {
     baseList = baseList.filter(c => (c.collectedBy || '').toLowerCase() === filterCollectorName.toLowerCase())
   }
 
+  // Filter by Date Range
+  if (dateFilter === 'today') {
+    baseList = baseList.filter(c => c.createdAt && isToday(c.createdAt))
+  } else if (dateFilter === 'yesterday') {
+    baseList = baseList.filter(c => c.createdAt && isYesterday(c.createdAt))
+  } else if (dateFilter === 'week') {
+    const sevenDaysAgo = subDays(startOfDay(new Date()), 7)
+    baseList = baseList.filter(c => c.createdAt && isAfter(c.createdAt, sevenDaysAgo))
+  } else if (dateFilter === 'custom' && customDate) {
+    baseList = baseList.filter(c => c.createdAt && format(c.createdAt, 'yyyy-MM-dd') === customDate)
+  }
+
   // Payment Method Breakdown for current view
   const methodStats = {
     UPI: baseList.filter(c => c.paymentMethod === 'UPI' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
@@ -116,6 +142,7 @@ export default function ContributionsPage() {
     Cheque: baseList.filter(c => c.paymentMethod === 'Cheque' && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
   }
 
+  // Filter by Search, Status, Method, Dept
   const filtered = baseList.filter(c => {
     const q = search.toLowerCase()
     const matchSearch = !q || c.contributorName.toLowerCase().includes(q) ||
@@ -124,6 +151,17 @@ export default function ContributionsPage() {
     const matchMethod = !filterMethod || c.paymentMethod === filterMethod
     const matchDept = !filterDept || c.departmentId === filterDept
     return matchSearch && matchStatus && matchMethod && matchDept
+  })
+
+  // 🔄 Sort Data by Date / Time / Amount
+  filtered.sort((a, b) => {
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+    if (sortOrder === 'newest') return timeB - timeA
+    if (sortOrder === 'oldest') return timeA - timeB
+    if (sortOrder === 'amount_high') return b.amount - a.amount
+    if (sortOrder === 'amount_low') return a.amount - b.amount
+    return 0
   })
 
   const openAdd = () => {
@@ -223,6 +261,7 @@ export default function ContributionsPage() {
           <p className="text-gray-500 text-sm">
             {contributions.length} total • {filtered.length} shown
             {filterCollector === 'mine' && <span className="font-bold text-saffron-700"> (Showing My Collections)</span>}
+            {dateFilter === 'today' && <span className="font-bold text-green-700"> • 📅 Filtered for Today</span>}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -241,6 +280,123 @@ export default function ContributionsPage() {
             Export Contributors
           </Button>
           <Button icon={<Plus size={15} />} onClick={openAdd}>Add Contribution</Button>
+        </div>
+      </div>
+
+      {/* 🌟 TODAY'S REAL-TIME SUMMARY WIDGET */}
+      <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-card space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+              <Calendar size={18} />
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide flex items-center gap-2">
+                Today's Collection ({format(new Date(), 'dd MMMM yyyy')})
+                <span className="text-[10px] bg-green-600 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">Live</span>
+              </h3>
+              <p className="text-xs text-amber-800">
+                {todayContributions.length} collections recorded today
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-amber-900 uppercase">Today's Total</p>
+            <p className="text-2xl font-black text-green-700">{formatCurrency(todayTotal)}</p>
+          </div>
+        </div>
+
+        {/* Today's Breakdown by Payment Method */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+          <div className="bg-white/90 p-2.5 rounded-xl border border-purple-200 text-purple-900">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>📱 Today's UPI</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'UPI').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayUPI)}</p>
+          </div>
+
+          <div className="bg-white/90 p-2.5 rounded-xl border border-green-200 text-green-900">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>💵 Today's Cash</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'Cash').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayCash)}</p>
+          </div>
+
+          <div className="bg-white/90 p-2.5 rounded-xl border border-blue-200 text-blue-900">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>🌐 Today's Online</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'Online').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayOnline)}</p>
+          </div>
+
+          <div className="bg-white/90 p-2.5 rounded-xl border border-amber-200 text-amber-900">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>🏦 Today's Cheque</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'Cheque').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayCheque)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 📅 Date Filter Pills & Sort Dropdown */}
+      <div className="bg-white p-3 rounded-2xl shadow-card border border-gray-100 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-black text-gray-500 uppercase tracking-wider mr-1 flex items-center gap-1">
+            <Clock size={13} /> Filter Date:
+          </span>
+          {[
+            { key: 'all', label: 'All Time' },
+            { key: 'today', label: "⚡ Today's Collections" },
+            { key: 'yesterday', label: 'Yesterday' },
+            { key: 'week', label: 'Last 7 Days' },
+          ].map(pill => (
+            <button
+              key={pill.key}
+              type="button"
+              onClick={() => setDateFilter(pill.key as DateFilterRange)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all border ${
+                dateFilter === pill.key
+                  ? 'bg-gradient-to-r from-saffron-600 to-amber-600 text-white border-saffron-600 shadow-xs'
+                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
+
+          {/* Custom Date Picker */}
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={customDate}
+              onChange={e => {
+                setCustomDate(e.target.value)
+                setDateFilter('custom')
+              }}
+              className="text-xs py-1 px-2 border border-gray-200 rounded-xl bg-gray-50 font-bold text-gray-700"
+            />
+          </div>
+        </div>
+
+        {/* 🔄 Sort by Date / Amount */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-gray-500 uppercase tracking-wider flex items-center gap-1">
+            <ArrowUpDown size={13} /> Sort By:
+          </span>
+          <select
+            value={sortOrder}
+            onChange={e => setSortOrder(e.target.value as SortOrder)}
+            className="text-xs py-1.5 px-3 border border-gray-300 rounded-xl font-bold bg-white text-gray-800 shadow-xs"
+          >
+            <option value="newest">📅 Newest Date First (Default)</option>
+            <option value="oldest">📅 Oldest Date First</option>
+            <option value="amount_high">💰 Highest Amount First</option>
+            <option value="amount_low">💰 Lowest Amount First</option>
+          </select>
         </div>
       </div>
 
@@ -289,7 +445,7 @@ export default function ContributionsPage() {
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">
-            Calculated by Payment Method {filterCollector === 'mine' ? '(My Collections)' : '(All Collections)'}:
+            Calculated for Current View ({dateFilter === 'today' ? 'Today Only' : dateFilter}):
           </p>
           {filterMethod && (
             <button
@@ -342,7 +498,7 @@ export default function ContributionsPage() {
           <p className="text-xl font-bold text-saffron-700">
             {formatCurrency(baseList.filter(c=>c.paymentStatus==='Paid').reduce((s,c)=>s+c.amount,0))}
           </p>
-          <p className="text-sm text-saffron-600">{filterCollector === 'mine' ? 'My Collected' : 'Total Collected'}</p>
+          <p className="text-sm text-saffron-600">{dateFilter === 'today' ? "Today's Total" : filterCollector === 'mine' ? 'My Collected' : 'Total Filtered'}</p>
         </div>
       </div>
 
@@ -367,7 +523,7 @@ export default function ContributionsPage() {
       <SearchFilter
         value={search}
         onChange={setSearch}
-        placeholder="Search by name, mobile, receipt..."
+        placeholder="Search by name, mobile, receipt, room..."
         filters={[
           { key: 'collector', label: 'All Collectors', value: filterCollectorName, onChange: setFilterCollectorName,
             options: uniqueCollectors.map(name => {
@@ -385,14 +541,14 @@ export default function ContributionsPage() {
 
       {filtered.length === 0 ? (
         <EmptyState icon={<IndianRupee size={32} />} title="No contributions found"
-          message="Try adjusting your filters or add a new contribution."
+          message={dateFilter === 'today' ? "No contributions recorded yet today." : "Try adjusting your filters or add a new contribution."}
           action={{ label: 'Add Contribution', onClick: openAdd }} />
       ) : (
         <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {['Receipt','Name','Mobile','Amount','Method','Status','Department','Collector','Date','Actions']
+                {['Receipt','Name','Room / Flat','Mobile','Amount','Method','Status','Department','Collector','Date & Time (Sorted)','Actions']
                   .map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>)}
               </tr>
             </thead>
@@ -401,9 +557,18 @@ export default function ContributionsPage() {
                 <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-saffron-700 font-bold">{c.receiptNumber}</td>
                   <td className="px-4 py-3 font-medium text-gray-900">{c.contributorName}</td>
+                  <td className="px-4 py-3 text-gray-700 font-semibold">{c.houseNumber || '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{c.mobile}</td>
-                  <td className="px-4 py-3 font-semibold text-gray-900">{formatCurrency(c.amount)}</td>
-                  <td className="px-4 py-3 text-gray-600">{c.paymentMethod}</td>
+                  <td className="px-4 py-3 font-black text-green-700 text-base">{formatCurrency(c.amount)}</td>
+                  <td className="px-4 py-3 text-gray-700 font-bold">
+                    <span className={`px-2 py-0.5 rounded-lg text-xs ${
+                      c.paymentMethod === 'UPI' ? 'bg-purple-100 text-purple-900' :
+                      c.paymentMethod === 'Cash' ? 'bg-green-100 text-green-900' :
+                      c.paymentMethod === 'Online' ? 'bg-blue-100 text-blue-900' : 'bg-amber-100 text-amber-900'
+                    }`}>
+                      {c.paymentMethod}
+                    </span>
+                  </td>
                   <td className="px-4 py-3"><Badge variant={statusVariant[c.paymentStatus]} dot>{c.paymentStatus}</Badge></td>
                   <td className="px-4 py-3 text-gray-600">{c.departmentName}</td>
                   <td className="px-4 py-3">
@@ -416,7 +581,9 @@ export default function ContributionsPage() {
                       {c.collectedBy}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3 text-gray-600 font-medium text-xs whitespace-nowrap">
+                    {formatDateTime(c.createdAt)}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
                       <button onClick={() => { setSingleReceiptContrib(c); setSingleReceiptOpen(true) }}

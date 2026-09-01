@@ -1,18 +1,29 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  IndianRupee, Users, UserCheck, Building2,
-  TrendingUp, Clock, CreditCard, Download, FileText, Key, ShieldCheck, Plus, Copy, Check, Share2
+  IndianRupee,
+  Users,
+  CreditCard,
+  Building2,
+  TrendingUp,
+  Plus,
+  Key,
+  Download,
+  FileText,
+  Clock,
+  UserCheck,
+  Calendar,
+  ArrowRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
 import { subscribeToContributions } from '../../services/contributionService'
 import { subscribeToExpenses } from '../../services/expenseService'
 import { subscribeToActivityLogs } from '../../services/activityService'
+import { subscribeToPublishedAnnouncements } from '../../services/announcementService'
 import { getUsersByRole } from '../../services/userService'
 import { getDepartmentsByFestival } from '../../services/departmentService'
-import { subscribeToPublishedAnnouncements } from '../../services/announcementService'
 import { createInviteCode, getInviteCodesByFestival } from '../../services/inviteCodeService'
 import StatCard from '../../components/ui/StatCard'
 import Card from '../../components/ui/Card'
@@ -30,7 +41,7 @@ import GroupReceiptModal from '../../components/contributions/GroupReceiptModal'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
 import { formatCurrency, formatDate, exportContributionsToCSV } from '../../utils/formatters'
 import type { Contribution, Expense, ActivityLog, Announcement, Department, InviteCode, InviteCodeType } from '../../types'
-import { format } from 'date-fns'
+import { format, isToday } from 'date-fns'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
@@ -95,6 +106,16 @@ export default function AdminDashboard() {
   const partialCount = contributions.filter(c => c.paymentStatus === 'Partial').length
   const targetAmount = festival?.targetAmount || 0
   const progress = targetAmount > 0 ? Math.min((totalCollection / targetAmount) * 100, 100) : 0
+
+  // 🌟 Calculate Today's Live Collections
+  const todayContributions = contributions.filter(
+    c => c.createdAt && isToday(c.createdAt) && c.paymentStatus === 'Paid'
+  )
+  const todayTotal = todayContributions.reduce((s, c) => s + c.amount, 0)
+  const todayUPI = todayContributions.filter(c => c.paymentMethod === 'UPI').reduce((s, c) => s + c.amount, 0)
+  const todayCash = todayContributions.filter(c => c.paymentMethod === 'Cash').reduce((s, c) => s + c.amount, 0)
+  const todayOnline = todayContributions.filter(c => c.paymentMethod === 'Online').reduce((s, c) => s + c.amount, 0)
+  const todayCheque = todayContributions.filter(c => c.paymentMethod === 'Cheque').reduce((s, c) => s + c.amount, 0)
 
   const paymentMethodData = ['Cash', 'Online', 'UPI', 'Cheque'].map(m => ({
     name: m,
@@ -168,6 +189,74 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* 🌟 TODAY'S LIVE COLLECTION & PAYMENT METHOD BREAKDOWN */}
+      <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-card space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-gradient-to-br from-saffron-500 to-amber-600 text-white rounded-xl shadow-xs">
+              <Calendar size={20} />
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide flex items-center gap-2">
+                Today's Real-Time Collection ({format(new Date(), 'dd MMM yyyy')})
+                <span className="text-[10px] bg-green-600 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">Live</span>
+              </h3>
+              <p className="text-xs text-amber-800">
+                {todayContributions.length} contributions collected today
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-xs font-bold text-amber-900 uppercase">Today's Total</p>
+              <p className="text-2xl font-black text-green-700">{formatCurrency(todayTotal)}</p>
+            </div>
+            <button
+              onClick={() => navigate('/admin/contributions')}
+              className="inline-flex items-center gap-1 bg-white hover:bg-amber-100 text-amber-950 font-bold text-xs px-3 py-2 rounded-xl border border-amber-300 shadow-xs transition-colors"
+            >
+              <span>View All</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Today's Breakdown by Method */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+          <div className="bg-white/90 p-3 rounded-xl border border-purple-200 text-purple-900 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>📱 Today's UPI</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'UPI').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayUPI)}</p>
+          </div>
+
+          <div className="bg-white/90 p-3 rounded-xl border border-green-200 text-green-900 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>💵 Today's Cash</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'Cash').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayCash)}</p>
+          </div>
+
+          <div className="bg-white/90 p-3 rounded-xl border border-blue-200 text-blue-900 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>🌐 Today's Online</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'Online').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayOnline)}</p>
+          </div>
+
+          <div className="bg-white/90 p-3 rounded-xl border border-amber-200 text-amber-900 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>🏦 Today's Cheque</span>
+              <span className="text-[10px] opacity-75">{todayContributions.filter(c => c.paymentMethod === 'Cheque').length} txns</span>
+            </div>
+            <p className="text-lg font-black mt-0.5">{formatCurrency(todayCheque)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Top Main Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3.5">
         <StatCard title="Total Collection" value={formatCurrency(totalCollection)} icon={<IndianRupee size={20} />} color="orange" />
@@ -179,12 +268,12 @@ export default function AdminDashboard() {
         <StatCard title="Departments" value={deptCount} icon={<Building2 size={20} />} color="teal" />
       </div>
 
-      {/* Payment Method Breakdown Real-Time Cards */}
+      {/* All-Time Payment Method Breakdown Real-Time Cards */}
       <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 space-y-2.5">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
             <CreditCard size={15} className="text-saffron-600" />
-            Collection Calculated by Payment Method
+            All-Time Collection Calculated by Payment Method
           </h3>
           <span className="text-xs font-bold text-gray-500">
             Total: {formatCurrency(totalCollection)}
