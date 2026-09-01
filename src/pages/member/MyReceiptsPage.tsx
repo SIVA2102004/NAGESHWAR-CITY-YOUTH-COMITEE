@@ -524,6 +524,7 @@ export default function MyReceiptsPage() {
                             c.paymentStatus === 'Paid'
                               ? 'success'
                               : c.paymentStatus === 'Pending'
+                              ? 'warning'
                               : 'info'
                           }
                           dot
