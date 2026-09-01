@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { IndianRupee, Users, Clock, Plus, Calendar, ArrowRight } from 'lucide-react'
+import { IndianRupee, Users, Clock, Plus, Calendar, ArrowRight, BarChart2, TrendingUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useFestival } from '../../context/FestivalContext'
@@ -10,6 +10,8 @@ import { subscribeToPublishedAnnouncements } from '../../services/announcementSe
 import StatCard from '../../components/ui/StatCard'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import CollectionChart from '../../components/charts/CollectionChart'
+import PaymentMethodChart from '../../components/charts/PaymentMethodChart'
 import AnnouncementCard from '../../components/shared/AnnouncementCard'
 import ReceiptModal from '../../components/receipt/ReceiptModal'
 import AddContributionModal from '../../components/contributions/AddContributionModal'
@@ -60,6 +62,44 @@ export default function VolunteerDashboard() {
   const todayCash = todayContributions.filter(c => c.paymentMethod === 'Cash').reduce((s, c) => s + c.amount, 0)
   const todayOnline = todayContributions.filter(c => c.paymentMethod === 'Online').reduce((s, c) => s + c.amount, 0)
   const todayCheque = todayContributions.filter(c => c.paymentMethod === 'Cheque').reduce((s, c) => s + c.amount, 0)
+
+  // 📊 Daily Collection Trend (Last 7 Days)
+  const dailyData = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    const label = format(d, 'dd MMM')
+    const dateStr = format(d, 'yyyy-MM-dd')
+    const amount = contributions
+      .filter(c => c.paymentStatus === 'Paid' && format(c.createdAt, 'yyyy-MM-dd') === dateStr)
+      .reduce((s, c) => s + c.amount, 0)
+    return { name: label, amount }
+  })
+
+  // 📅 Complete Day-Wise Aggregated Table
+  const dayWiseMap: Record<string, { date: Date; total: number; upi: number; cash: number; online: number; cheque: number; count: number }> = {}
+  contributions
+    .filter(c => c.paymentStatus === 'Paid' && c.createdAt)
+    .forEach(c => {
+      const key = format(c.createdAt, 'yyyy-MM-dd')
+      if (!dayWiseMap[key]) {
+        dayWiseMap[key] = { date: c.createdAt, total: 0, upi: 0, cash: 0, online: 0, cheque: 0, count: 0 }
+      }
+      dayWiseMap[key].total += c.amount
+      dayWiseMap[key].count += 1
+      if (c.paymentMethod === 'UPI') dayWiseMap[key].upi += c.amount
+      if (c.paymentMethod === 'Cash') dayWiseMap[key].cash += c.amount
+      if (c.paymentMethod === 'Online') dayWiseMap[key].online += c.amount
+      if (c.paymentMethod === 'Cheque') dayWiseMap[key].cheque += c.amount
+    })
+
+  const dayWiseList = Object.entries(dayWiseMap)
+    .map(([key, data]) => ({ key, ...data }))
+    .sort((a, b) => b.key.localeCompare(a.key))
+
+  const paymentMethodData = ['Cash', 'Online', 'UPI', 'Cheque'].map(m => ({
+    name: m,
+    value: contributions.filter(c => c.paymentMethod === m && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0),
+  }))
 
   const handleAddSuccess = (
     createdList: Contribution[],
@@ -169,40 +209,90 @@ export default function VolunteerDashboard() {
         <StatCard title="Pending Chanda" value={pendingCount} icon={<Clock size={20} />} color="red" />
       </div>
 
-      {/* Payment Method Breakdown for Coordinator */}
-      <div className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-gray-700 uppercase tracking-wider">
-            All-Time Collection Calculated by Payment Method
+      {/* 📅 DAY-WISE COLLECTION SUMMARY TABLE */}
+      <div className="bg-white rounded-2xl p-5 shadow-card border border-gray-100 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-extrabold text-gray-900 text-base flex items-center gap-2">
+            <Calendar size={18} className="text-saffron-600" />
+            Day-Wise Collection Report (Day by Day)
           </h3>
-          <span className="text-xs font-bold text-gray-500">
-            Total: {formatCurrency(myTotal)}
+          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+            {dayWiseList.length} Active Days
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { name: 'UPI', label: '📱 UPI', color: 'bg-purple-50 border-purple-200 text-purple-900', barColor: 'bg-purple-500' },
-            { name: 'Cash', label: '💵 Cash', color: 'bg-green-50 border-green-200 text-green-900', barColor: 'bg-green-500' },
-            { name: 'Online', label: '🌐 Online', color: 'bg-blue-50 border-blue-200 text-blue-900', barColor: 'bg-blue-500' },
-            { name: 'Cheque', label: '🏦 Cheque', color: 'bg-amber-50 border-amber-200 text-amber-900', barColor: 'bg-amber-500' },
-          ].map(m => {
-            const val = contributions.filter(c => c.paymentMethod === m.name && c.paymentStatus === 'Paid').reduce((s, c) => s + c.amount, 0)
-            const count = contributions.filter(c => c.paymentMethod === m.name && c.paymentStatus === 'Paid').length
-            const pct = myTotal > 0 ? (val / myTotal) * 100 : 0
-            return (
-              <div key={m.name} className={`p-3 rounded-xl border ${m.color} space-y-1`}>
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span>{m.label}</span>
-                  <span className="text-[11px] opacity-75">{count} txns</span>
-                </div>
-                <p className="text-base sm:text-lg font-black">{formatCurrency(val)}</p>
-                <div className="w-full bg-black/10 rounded-full h-1 overflow-hidden">
-                  <div className={`h-full ${m.barColor} rounded-full`} style={{ width: `${pct}%` }}></div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+
+        {dayWiseList.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-6">No collections recorded yet</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/80 text-xs text-gray-500 uppercase">
+                  <th className="px-4 py-2.5 text-left font-bold">Date</th>
+                  <th className="px-4 py-2.5 text-right font-bold">Total Collection</th>
+                  <th className="px-4 py-2.5 text-center font-bold">📱 UPI</th>
+                  <th className="px-4 py-2.5 text-center font-bold">💵 Cash</th>
+                  <th className="px-4 py-2.5 text-center font-bold">🌐 Online</th>
+                  <th className="px-4 py-2.5 text-center font-bold">Donations</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dayWiseList.map((day) => (
+                  <tr key={day.key} className="border-b border-gray-50 hover:bg-amber-50/40 transition-colors">
+                    <td className="px-4 py-3 font-bold text-gray-900 flex items-center gap-1.5">
+                      <Calendar size={14} className="text-saffron-600" />
+                      {format(new Date(day.date), 'dd MMMM yyyy (EEE)')}
+                      {isToday(new Date(day.date)) && (
+                        <span className="text-[10px] bg-green-600 text-white font-black px-1.5 py-0.2 rounded-full uppercase">
+                          Today
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-black text-green-700 text-base">
+                      {formatCurrency(day.total)}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg text-xs">
+                        {formatCurrency(day.upi)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="font-bold text-green-900 bg-green-50 px-2 py-0.5 rounded-lg text-xs">
+                        {formatCurrency(day.cash)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded-lg text-xs">
+                        {formatCurrency(day.online)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center font-bold text-gray-700">
+                      {day.count} txns
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <BarChart2 size={18} className="text-saffron-600" />
+            Daily Collection Trend (Last 7 Days)
+          </h3>
+          <CollectionChart data={dailyData} />
+        </Card>
+        <Card>
+          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <TrendingUp size={18} className="text-saffron-600" />
+            Payment Method Distribution
+          </h3>
+          <PaymentMethodChart data={paymentMethodData} />
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
