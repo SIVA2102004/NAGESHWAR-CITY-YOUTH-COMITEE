@@ -294,12 +294,39 @@ export default function MyContributionsPage() {
       <SearchFilter value={search} onChange={setSearch} placeholder="Search by name, mobile, receipt..." />
 
       {filtered.length === 0 ? (
-        <EmptyState
-          icon={<IndianRupee size={32} />}
-          title="No collections found"
-          message={dateFilter === 'today' ? "No contributions recorded yet today." : filterMethod ? `No contributions found for ${filterMethod}.` : "Start recording chanda contributions from devotees or room groups."}
-          action={{ label: 'Record Collection', onClick: () => setAddModalOpen(true) }}
-        />
+        <div className="bg-white rounded-2xl shadow-card p-8 text-center border border-gray-100 space-y-4">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+            <Calendar size={32} />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-gray-900">
+              {dateFilter === 'today'
+                ? "No Collections Recorded Today (" + format(new Date(), 'dd MMM yyyy') + ")"
+                : "No matching collections found"}
+            </h3>
+            <p className="text-sm text-gray-500 max-w-md mx-auto mt-1">
+              {dateFilter === 'today'
+                ? `All your ${contributions.length} collections (Total: ${formatCurrency(myTotalPaid)}) are safe. Click 'Show All Time' below to view all!`
+                : "Try adjusting your filters or record a new collection."}
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            {dateFilter !== 'all' && (
+              <Button
+                variant="primary"
+                onClick={() => setDateFilter('all')}
+              >
+                Show All Time ({contributions.length} Records)
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setAddModalOpen(true)}
+            >
+              + Record Collection
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">

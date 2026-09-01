@@ -540,9 +540,39 @@ export default function ContributionsPage() {
       />
 
       {filtered.length === 0 ? (
-        <EmptyState icon={<IndianRupee size={32} />} title="No contributions found"
-          message={dateFilter === 'today' ? "No contributions recorded yet today." : "Try adjusting your filters or add a new contribution."}
-          action={{ label: 'Add Contribution', onClick: openAdd }} />
+        <div className="bg-white rounded-2xl shadow-card p-8 text-center border border-gray-100 space-y-4">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+            <Calendar size={32} />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-gray-900">
+              {dateFilter === 'today'
+                ? "No Collections Recorded Today (" + format(new Date(), 'dd MMM yyyy') + ")"
+                : "No matching contributions found"}
+            </h3>
+            <p className="text-sm text-gray-500 max-w-md mx-auto mt-1">
+              {dateFilter === 'today'
+                ? `All your ${contributions.length} previous contributions (Total: ${formatCurrency(totalCollectedAll)}) are safely saved. Click 'Show All Time' below to view all of them!`
+                : "Try adjusting your filters or search keywords."}
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            {dateFilter !== 'all' && (
+              <Button
+                variant="primary"
+                onClick={() => setDateFilter('all')}
+              >
+                Show All Time ({contributions.length} Total Records)
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={openAdd}
+            >
+              + Add New Contribution
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
