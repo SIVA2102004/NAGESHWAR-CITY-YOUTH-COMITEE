@@ -189,6 +189,7 @@ export default function AddContributionModal({
 
     // Trigger Razorpay Checkout
     const launched = openRazorpayCheckout({
+      keyId: (festival as any)?.razorpayKeyId,
       amount: currentTotalToPay,
       committeeName: festival?.committeeName || 'Sri Nageshwar Youth Committee',
       devoteeName: tabMode === 'single' ? singleName.trim() : `Room ${roomNumber.trim()}`,
@@ -207,10 +208,9 @@ export default function AddContributionModal({
       }
     })
 
-    // If Razorpay popup is not loaded or in test simulation, provide interactive simulation
+    // If no active Razorpay key is configured, transition directly to the Bank-Verified Simulator
     if (!launched) {
-      // Simulation handles both Success and Simulated Rejection
-      console.log('Razorpay direct popup ready in Gateway mode.')
+      setStep('gateway_processing')
     }
   }
 

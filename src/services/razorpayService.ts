@@ -37,6 +37,16 @@ declare global {
   }
 }
 
+export function isValidRazorpayKey(key?: string): boolean {
+  if (!key) return false
+  const trimmed = key.trim()
+  return (
+    (trimmed.startsWith('rzp_test_') || trimmed.startsWith('rzp_live_')) &&
+    !trimmed.includes('YourKeyIdHere') &&
+    trimmed.length >= 14
+  )
+}
+
 /**
  * Open official Razorpay Checkout Window
  */
@@ -60,12 +70,13 @@ export function openRazorpayCheckout({
   onSuccess: (paymentId: string, signature?: string) => void
   onDismiss?: () => void
   onError?: (err: any) => void
-}) {
-  const activeKey = keyId?.trim() || 'rzp_test_YourKeyIdHere'
-  const amountInPaise = Math.round(amount * 100)
+}): boolean {
+  const activeKey = keyId?.trim() || ''
 
-  if (typeof window !== 'undefined' && window.Razorpay) {
+  // Only launch official Razorpay popup if a valid key format is provided
+  if (isValidRazorpayKey(activeKey) && typeof window !== 'undefined' && window.Razorpay) {
     try {
+      const amountInPaise = Math.round(amount * 100)
       const options: RazorpayOptions = {
         key: activeKey,
         amount: amountInPaise,
@@ -105,5 +116,7 @@ export function openRazorpayCheckout({
       return false
     }
   }
+
+  // If no valid key is configured, return false so the clean built-in Bank Simulator opens smoothly without the "Uh oh! Something went wrong" popup!
   return false
 }
