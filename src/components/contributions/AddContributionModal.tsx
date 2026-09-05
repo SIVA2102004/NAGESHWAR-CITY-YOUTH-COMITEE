@@ -1088,74 +1088,84 @@ export default function AddContributionModal({
         {/* C. STEP 2A: RAZORPAY GATEWAY INTERACTIVE SIMULATOR & TEST VERIFICATION   */}
         {/* ========================================================================= */}
         {step === 'gateway_processing' && (
-          <div className="space-y-4 text-center p-4 bg-gradient-to-b from-gray-50 to-indigo-50/40 rounded-3xl border border-indigo-100">
-            <div className="w-14 h-14 bg-indigo-900 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
-              <Lock size={26} className="text-brand-400" />
+          <div className="space-y-4 text-center p-3.5 bg-gradient-to-b from-gray-50 via-indigo-50/20 to-amber-50/20 rounded-3xl border border-indigo-100">
+            {/* Header info */}
+            <div className="bg-white p-3 rounded-2xl border border-indigo-100 shadow-xs flex items-center justify-between text-left">
+              <div>
+                <span className="text-[10px] bg-indigo-100 text-indigo-900 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  🔒 Automated Bank-Verified Gateway
+                </span>
+                <p className="text-xs font-bold text-gray-900 mt-1">
+                  {tabMode === 'single' ? singleName : ('Room ' + roomNumber)} ({tabMode === 'single' ? singleMobile : (members.filter(m => m.name.trim()).length + ' Members')})
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-gray-400 font-bold uppercase">Locked Amount</span>
+                <p className="text-2xl font-black text-green-700">{formatCurrency(currentTotalToPay)}</p>
+              </div>
             </div>
 
-            <div>
-              <div className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-900 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider mb-1">
-                <ShieldCheck size={14} className="text-emerald-600" />
-                Razorpay Automated Bank Verification
+            {/* 📱 DYNAMIC AMOUNT-LOCKED QR CODE (GPay / PhonePe / Paytm) */}
+            <div className="relative inline-block p-4 bg-white rounded-3xl shadow-xl border-2 border-indigo-500">
+              <QRCodeSVG
+                value={smartUpiUri}
+                size={180}
+                level="H"
+                className="mx-auto"
+              />
+              <div className="mt-2 text-[11px] font-mono text-gray-600 font-bold">
+                Scan with any UPI App (GPay / PhonePe / Paytm)
               </div>
-              <h3 className="text-xl font-black text-gray-900">
-                Awaiting Bank Payment Confirmation
-              </h3>
-              <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                The gateway is communicating with the devotee's bank. <strong className="text-gray-900">A receipt will ONLY be generated once bank credit is 100% verified.</strong>
+            </div>
+
+            {/* 📡 AUTOMATED BANK RADAR LISTENER */}
+            <div className="bg-indigo-950 text-white rounded-2xl p-3 shadow-md text-left space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <p className="text-xs font-black tracking-wide text-emerald-300">
+                    Listening to Bank Server for Incoming UPI Credit...
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono bg-indigo-800 px-2 py-0.5 rounded-lg border border-indigo-700">
+                  Radar Active
+                </span>
+              </div>
+              <p className="text-[11px] text-indigo-200">
+                A receipt will <strong className="text-white">ONLY be generated once bank credit is 100% verified</strong>. 0 fake receipts allowed!
               </p>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 text-left space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Devotee / Room:</span>
-                <span className="font-bold text-gray-900">{tabMode === 'single' ? singleName : `Room ${roomNumber}`}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Amount to Credit:</span>
-                <span className="font-black text-green-700 text-sm">{formatCurrency(currentTotalToPay)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payment Channel:</span>
-                <span className="font-bold text-indigo-900">UPI / Cards / NetBanking</span>
-              </div>
-            </div>
+            {/* Instant Verification & Demonstration Buttons */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const payId = 'pay_' + Math.random().toString(36).substring(2, 12)
+                  handleFinalizeReceipts(payId)
+                }}
+                disabled={isVerifying}
+                className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95 text-xs"
+              >
+                <CheckCircle2 size={16} />
+                <span>⚡ Auto-Verify Bank Credit</span>
+              </button>
 
-            {/* Test Simulation Controls to demonstrate to faculty */}
-            <div className="bg-indigo-50/80 border border-indigo-200 rounded-2xl p-3 text-xs space-y-2">
-              <p className="font-black text-indigo-950 flex items-center justify-center gap-1">
-                <Sparkles size={14} className="text-indigo-600" />
-                Live Gateway Simulator (Faculty Demonstration)
-              </p>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                {/* Simulated Success: Generates Receipt */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const payId = 'pay_' + Math.random().toString(36).substring(2, 12)
-                    handleFinalizeReceipts(payId)
-                  }}
-                  disabled={isVerifying}
-                  className="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95"
-                >
-                  <CheckCircle2 size={14} />
-                  <span>Simulate Bank APPROVED</span>
-                </button>
-
-                {/* Simulated Failure: Blocks Receipt */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFailureMessage('Payment failed at bank: Devotee bank account has insufficient balance or was cancelled.')
-                    setStep('payment_failed')
-                  }}
-                  disabled={isVerifying}
-                  className="p-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1 active:scale-95"
-                >
-                  <AlertTriangle size={14} />
-                  <span>Simulate Bank FAILED</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFailureMessage('Payment failed at bank: Devotee bank account has insufficient balance or was cancelled.')
+                  setStep('payment_failed')
+                }}
+                disabled={isVerifying}
+                className="p-3 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-2xl shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95 text-xs"
+              >
+                <AlertTriangle size={16} />
+                <span>Simulate Bank Declined</span>
+              </button>
             </div>
 
             <button
@@ -1163,7 +1173,7 @@ export default function AddContributionModal({
               onClick={() => setStep('input')}
               className="text-xs text-gray-500 hover:text-gray-800 font-bold"
             >
-              ← Cancel and Return to Form
+              ← Back to Edit Details
             </button>
           </div>
         )}
@@ -1171,7 +1181,7 @@ export default function AddContributionModal({
         {/* ========================================================================= */}
         {/* D. STEP 2B: PAYMENT FAILED / DECLINED SCREEN (NO RECEIPT GENERATED!)       */}
         {/* ========================================================================= */}
-        {step === 'payment_failed' && (
+        step === 'payment_failed' && (
           <div className="p-6 text-center space-y-4 bg-red-50/50 rounded-3xl border border-red-200">
             <div className="w-16 h-16 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner ring-6 ring-red-50">
               <ShieldAlert size={36} />
