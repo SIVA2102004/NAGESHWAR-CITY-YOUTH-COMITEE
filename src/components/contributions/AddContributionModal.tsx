@@ -1181,7 +1181,7 @@ export default function AddContributionModal({
         {/* ========================================================================= */}
         {/* D. STEP 2B: PAYMENT FAILED / DECLINED SCREEN (NO RECEIPT GENERATED!)       */}
         {/* ========================================================================= */}
-        step === 'payment_failed' && (
+        {step === 'payment_failed' && (
           <div className="p-6 text-center space-y-4 bg-red-50/50 rounded-3xl border border-red-200">
             <div className="w-16 h-16 bg-red-100 text-red-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner ring-6 ring-red-50">
               <ShieldAlert size={36} />
